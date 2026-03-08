@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply antialiased text-gray-900 bg-white;
+  /* Prevent pull-to-refresh on mobile to feel more like an app */
+  overscroll-behavior-y: none;
+}
+
+/* Smooth scrolling for the drawer */
+.drawer-scroll {
+  -webkit-overflow-scrolling: touch;
+}
