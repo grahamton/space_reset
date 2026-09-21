@@ -137,7 +137,20 @@ describe('mission worker', () => {
       const prompt = parse.mock.calls[0][0].messages[0].content[1].text;
       expect(prompt).toMatch(/kitchen/i);
       expect(prompt).toMatch(/ambitious/i); // hard
-      expect(prompt).toMatch(/5 cleaning missions/i); // hard -> 5
+      expect(prompt).toMatch(/up to 5 cleaning missions/i); // hard -> 5
+      expect(prompt).toMatch(/Never exceed 900 seconds/); // hard -> 15 min cap
+    });
+
+    it('carries the shared guardrails in every persona system prompt', async () => {
+      parse.mockResolvedValue(okResponse([sampleMission]));
+
+      await worker.fetch(missionsRequest({ personaId: 'roastMaster' }), ENV);
+
+      const { system, max_tokens } = parse.mock.calls[0][0];
+      expect(system).toMatch(/Roast the mess, never the person/);
+      expect(system).toMatch(/Never shame them for the mess existing/);
+      // Bounded so a runaway generation fails fast instead of spinning for minutes.
+      expect(max_tokens).toBeLessThanOrEqual(8000);
     });
 
     it('falls back to the default persona for an unknown id', async () => {

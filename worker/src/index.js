@@ -29,12 +29,28 @@ const ACCEPTED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif
 const MissionsSchema = z.object({
   missions: z
     .array(
+      // Field order is generation order: pick the category first, write the card,
+      // then size the time box to what was described. Ending on a number rather
+      // than free text also stopped stray characters trailing the last string.
       z.object({
-        title: z.string().describe('Short, punchy mission name in the persona voice'),
-        description: z.string().describe('What to physically do, in the persona voice'),
-        time: z.number().int().describe('Suggested time box in seconds'),
-        type: z.enum(MISSION_TYPES),
-        strategy: z.string().describe('One tactic for starting this specific mission')
+        type: z
+          .enum(MISSION_TYPES)
+          .describe('Which of the "5 Things" categories this mission clears'),
+        title: z.string().describe('Mission name in the persona voice, 2 to 6 words'),
+        description: z
+          .string()
+          .describe(
+            'The physical action, naming items and locations visible in the photo. 1 or 2 short sentences, about 25 words max'
+          ),
+        strategy: z
+          .string()
+          .describe(
+            'One concrete tactic for starting this specific mission. 1 or 2 short sentences, about 25 words max'
+          ),
+        time: z
+          .number()
+          .int()
+          .describe('Time box in seconds, a multiple of 30, sized to the visible amount')
       })
     )
     .min(1)
@@ -63,14 +79,23 @@ const json = (body, { status = 200, origin = '*' } = {}) =>
 const errorResponse = (error, origin) => {
   if (error instanceof Anthropic.AuthenticationError) {
     console.error('Anthropic auth failed — check the ANTHROPIC_API_KEY secret');
-    return json({ error: 'Server is misconfigured. The API key was rejected.' }, { status: 502, origin });
+    return json(
+      { error: 'Server is misconfigured. The API key was rejected.' },
+      { status: 502, origin }
+    );
   }
   if (error instanceof Anthropic.RateLimitError) {
-    return json({ error: 'Too many requests right now. Give it a minute.' }, { status: 429, origin });
+    return json(
+      { error: 'Too many requests right now. Give it a minute.' },
+      { status: 429, origin }
+    );
   }
   if (error instanceof Anthropic.BadRequestError) {
     console.error('Bad request to Anthropic:', error.message);
-    return json({ error: "That photo couldn't be analyzed. Try another one." }, { status: 400, origin });
+    return json(
+      { error: "That photo couldn't be analyzed. Try another one." },
+      { status: 400, origin }
+    );
   }
 
   console.error('Mission generation failed:', error);
@@ -106,7 +131,10 @@ export default {
       return json({ error: 'No image provided.' }, { status: 400, origin });
     }
     if (image.length > MAX_IMAGE_BYTES) {
-      return json({ error: 'That photo is too large. Keep it under 5MB.' }, { status: 413, origin });
+      return json(
+        { error: 'That photo is too large. Keep it under 5MB.' },
+        { status: 413, origin }
+      );
     }
     if (!ACCEPTED_MIME_TYPES.includes(mimeType)) {
       return json({ error: 'Unsupported image format.' }, { status: 400, origin });
@@ -119,7 +147,10 @@ export default {
 
       const response = await client.messages.parse({
         model: MODEL,
-        max_tokens: 16000,
+        // A full mission set is well under 2k output tokens. Adaptive thinking is on
+        // by default for this model and shares this budget, so leave real headroom,
+        // but not 16k: a rare runaway string then burned ~2 minutes before failing.
+        max_tokens: 8000,
         // The persona is a real system prompt here. Gemini had no system slot,
         // so the old code glued it to the front of the user turn instead.
         system: persona.systemInstruction,

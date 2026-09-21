@@ -64,7 +64,7 @@ const fileToBase64 = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = () => reject(new Error('Could not read that image file.'));
+    reader.onerror = () => reject(new Error("Couldn't open that photo. Try a different one."));
     reader.readAsDataURL(file);
   });
 
@@ -84,16 +84,16 @@ export const visionModule = {
         body: JSON.stringify({ image, mimeType: file.type, personaId, roomType, difficulty })
       });
     } catch {
-      throw new Error("Couldn't reach the server. Check your connection.");
+      throw new Error("Can't connect right now. Check your internet, then try again.");
     }
 
     const payload = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(payload.error || 'Analysis failed. Try again?');
+      throw new Error(payload.error || 'Something went wrong reading your photo. Try again.');
     }
     if (!payload.missions?.length) {
-      throw new Error('No missions came back. Try another photo?');
+      throw new Error("Couldn't find any missions in that photo. Try a wider shot of the room.");
     }
 
     return payload;

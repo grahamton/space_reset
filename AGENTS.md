@@ -111,3 +111,12 @@ Run `npm test` before committing. It should be fully green — if it isn't, that
 - [ ] `npm run build` — succeeds
 - [ ] No API key or secret in client code, and none committed
 - [ ] `shared/` still free of DOM and Node APIs
+
+## Claude Code subagents
+
+Project subagents live in `.claude/agents/`:
+
+- `prompt-engineer`: persona voices, the mission prompt, schema descriptions and worker error text (`shared/`, `worker/`). It checks its changes with real calls against the local worker.
+- `ux-copywriter`: user-facing text in the React app (`src/`, `index.html`). It changes copy only, never behavior.
+
+Their file ownership doesn't overlap, so they can run in parallel. Test photos go in `eval-photos/` at the repo root, which is gitignored. Never commit them.

@@ -36,8 +36,8 @@ describe('SettingsModal', () => {
   it('offers both room type and difficulty', () => {
     renderModal();
 
-    expect(screen.getByText('Where are we cleaning?')).toBeInTheDocument();
-    expect(screen.getByText('How challenging?')).toBeInTheDocument();
+    expect(screen.getByText('Which room?')).toBeInTheDocument();
+    expect(screen.getByText('How much energy today?')).toBeInTheDocument();
     expect(screen.getByText('Bedroom')).toBeInTheDocument();
     expect(screen.getByText('Hard')).toBeInTheDocument();
   });
@@ -59,7 +59,7 @@ describe('SettingsModal', () => {
   it('closes on the close button', () => {
     renderModal();
 
-    fireEvent.click(screen.getByLabelText('Close settings dialog'));
+    fireEvent.click(screen.getByLabelText('Close settings'));
     expect(defaultProps.onClose).toHaveBeenCalled();
   });
 
@@ -80,6 +80,6 @@ describe('SettingsModal', () => {
   it('moves focus into the dialog on open', () => {
     renderModal();
 
-    expect(screen.getByLabelText('Close settings dialog')).toHaveFocus();
+    expect(screen.getByLabelText('Close settings')).toHaveFocus();
   });
 });

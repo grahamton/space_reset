@@ -7,7 +7,14 @@ const STORAGE_KEYS = {
   TIMER_STATE: 'timer_state',
   SELECTED_PERSONA_ID: 'selected_persona_id',
   ROOM_TYPE: 'room_type',
-  DIFFICULTY: 'difficulty'
+  DIFFICULTY: 'difficulty',
+  // String values: a number of missions, or 'auto' to let Claude size it to the photo.
+  MISSION_COUNT: 'mission_count',
+  // 'true' | 'false'. When 'true', a session with at least one mission done keeps the streak.
+  STREAK_INCLUDES_SKIPS: 'streak_includes_skips',
+  // 'true' | 'false'. What happens when a mission timer reaches zero.
+  TIMER_SOUND: 'timer_sound',
+  TIMER_NOTIFY: 'timer_notify'
 };
 
 const SESSION_EXPIRY_HOURS = 24;

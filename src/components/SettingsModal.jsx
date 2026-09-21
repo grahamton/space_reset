@@ -49,9 +49,9 @@ const SettingsModal = ({
             ref={closeButtonRef}
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Close settings dialog"
+            aria-label="Close settings"
           >
-            <X className="w-6 h-6" />
+            <X className="w-6 h-6" aria-hidden="true" />
           </button>
         </div>
 

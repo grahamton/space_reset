@@ -31,12 +31,12 @@ const SessionSummaryDrawer = ({ sessionState }) => {
             }
           }}
           aria-expanded={isOpen}
-          aria-label="Toggle mission queue panel"
+          aria-label={`Your missions: ${completedCount} of ${missionQueue.length} done`}
         >
-          <span className="font-bold text-gray-700 flex items-center gap-2">Current Plan</span>
+          <span className="font-bold text-gray-700 flex items-center gap-2">Your missions</span>
           <div className="flex items-center gap-3">
             <div className="text-xs font-bold bg-gray-100 text-gray-500 px-2 py-1 rounded-md">
-              {completedCount} / {missionQueue.length}
+              {completedCount} of {missionQueue.length} done
             </div>
             {isOpen ? (
               <ChevronDown className="w-5 h-5 text-gray-400" aria-hidden="true" />
@@ -68,6 +68,8 @@ const SessionSummaryDrawer = ({ sessionState }) => {
                   <h4 className={`font-bold text-sm ${isDone ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                     {m.title}
                   </h4>
+                    {isDone && <span className="sr-only">Done: </span>}
+                    {isCurrent && <span className="sr-only">Now: </span>}
                   {isDone && <CheckCircle className="w-4 h-4 text-green-500" aria-hidden="true" />}
                 </div>
                 <p className="text-xs text-gray-500 line-clamp-1">{m.description}</p>

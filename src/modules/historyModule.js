@@ -228,7 +228,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'first_clean',
       name: 'First Clean',
-      description: 'Completed your first session',
+      description: 'Finished your first session',
       icon: '🎯',
       unlockedAt: history[0]?.timestamp
     });
@@ -240,7 +240,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'speed_demon',
       name: 'Speed Demon',
-      description: 'Completed a session in under 5 minutes',
+      description: 'Wrapped up a session in under 5 minutes',
       icon: '⚡',
       unlockedAt: first?.timestamp
     });
@@ -252,7 +252,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'patient',
       name: 'Patient',
-      description: 'Completed a session over 30 minutes',
+      description: 'Stuck with one session for 30+ minutes',
       icon: '🧘',
       unlockedAt: first?.timestamp
     });
@@ -263,7 +263,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'week_warrior',
       name: 'Week Warrior',
-      description: '7 days in a row!',
+      description: 'Cleared every mission, 7 days in a row',
       icon: '🔥',
       unlockedAt: Date.now()
     });
@@ -274,7 +274,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'unstoppable',
       name: 'Unstoppable',
-      description: '14 days in a row!',
+      description: 'Cleared every mission, 14 days in a row',
       icon: '💪',
       unlockedAt: Date.now()
     });
@@ -285,7 +285,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'completionist',
       name: 'Completionist',
-      description: 'Finished 10 complete sessions',
+      description: 'Cleared every mission in 10 sessions',
       icon: '✨',
       unlockedAt: Date.now()
     });
@@ -296,7 +296,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'time_master',
       name: 'Time Master',
-      description: 'Over 10 hours of cleaning!',
+      description: '10 hours of cleaning, all added up',
       icon: '⏰',
       unlockedAt: Date.now()
     });
@@ -307,7 +307,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'all_star',
       name: 'All-Star',
-      description: '100+ missions completed!',
+      description: '100 missions done',
       icon: '⭐',
       unlockedAt: Date.now()
     });

@@ -85,11 +85,11 @@ const CurrentMission = ({ mission, onComplete, onSkip, totalMissions, currentInd
     <div className="w-full max-w-md mx-auto p-4 flex flex-col h-full max-h-full">
       <div className="flex justify-between items-center mb-4 px-1 shrink-0">
         <div className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-wider">
-          <Layers className="w-4 h-4" />
-          <span>Stack: {remainingCards} Left</span>
+          <Layers className="w-4 h-4" aria-hidden="true" />
+          <span>{remainingCards > 0 ? `${remainingCards} more after this` : 'Last one'}</span>
         </div>
         <div className="text-sm font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">
-          {currentIndex + 1} / {totalMissions}
+          {currentIndex + 1} of {totalMissions}
         </div>
       </div>
 
@@ -113,7 +113,7 @@ const CurrentMission = ({ mission, onComplete, onSkip, totalMissions, currentInd
           {/* Scrollable Content Area */}
           <div className="flex-1 overflow-y-auto pr-1 min-h-0 mb-4">
             <div className={`inline-block px-3 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider mb-3 ${themeClass}`}>
-              {mission.type || 'Task'}
+              {mission.type || 'Mission'}
             </div>
 
             <h3 className="text-3xl font-extrabold text-gray-900 mb-3 leading-tight">
@@ -126,7 +126,7 @@ const CurrentMission = ({ mission, onComplete, onSkip, totalMissions, currentInd
 
             {mission.strategy && (
               <div className="bg-gray-50 p-4 rounded-xl border-l-4 border-indigo-200 mb-2">
-                <p className="text-xs text-gray-400 font-bold uppercase mb-1">Strategy</p>
+                <p className="text-xs text-gray-400 font-bold uppercase mb-1">Tip</p>
                 <p className="text-sm text-gray-700 italic font-medium">"{mission.strategy}"</p>
               </div>
             )}
@@ -136,17 +136,20 @@ const CurrentMission = ({ mission, onComplete, onSkip, totalMissions, currentInd
           <div className="shrink-0 space-y-4 bg-white pt-2 border-t border-gray-50">
             <div className="bg-gray-50 rounded-2xl p-3">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-gray-400 uppercase">Time Box</span>
+                <span className="text-xs font-bold text-gray-400 uppercase">Timer</span>
                 <button
                   onClick={addOneMinute}
                   className="text-xs font-bold text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded flex items-center gap-1 transition-colors"
-                  aria-label="Add one minute to timer"
+                  aria-label="Add 1 minute"
                 >
-                  <Plus className="w-3 h-3" /> 1 min
+                  <Plus className="w-3 h-3" aria-hidden="true" /> 1 min
                 </button>
               </div>
               <div className="flex items-center justify-between">
-                <div className={`text-4xl font-mono font-bold tracking-tighter transition-colors ${timeLeft < 30 && isActive ? 'text-red-500' : 'text-gray-800'}`}>
+                <div
+                  role="timer"
+                  className={`text-4xl font-mono font-bold tracking-tighter transition-colors ${timeLeft < 30 && isActive ? 'text-red-500' : 'text-gray-800'}`}
+                >
                   {formatTime(timeLeft)}
                 </div>
                 <button
@@ -154,7 +157,11 @@ const CurrentMission = ({ mission, onComplete, onSkip, totalMissions, currentInd
                   className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isActive ? 'bg-orange-100 text-orange-600' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'}`}
                   aria-label={isActive ? 'Pause timer' : 'Start timer'}
                 >
-                  {isActive ? <Clock className="w-5 h-5" /> : <Play className="w-5 h-5 ml-1" />}
+                  {isActive ? (
+                    <Clock className="w-5 h-5" aria-hidden="true" />
+                  ) : (
+                    <Play className="w-5 h-5 ml-1" aria-hidden="true" />
+                  )}
                 </button>
               </div>
             </div>
@@ -163,18 +170,18 @@ const CurrentMission = ({ mission, onComplete, onSkip, totalMissions, currentInd
               <button
                 onClick={handleSkip}
                 className="px-4 py-3 bg-gray-100 text-gray-500 rounded-2xl font-bold hover:bg-gray-200 hover:text-gray-700 transition-colors flex flex-col items-center justify-center gap-1 text-xs"
-                aria-label="Skip mission and re-queue"
+                aria-label="Skip for now. This mission moves to the back of the stack."
               >
-                <SkipForward className="w-5 h-5" />
+                <SkipForward className="w-5 h-5" aria-hidden="true" />
                 Skip
               </button>
               <button
                 onClick={handleComplete}
                 className="py-3 bg-gray-900 text-white rounded-2xl font-bold shadow-xl shadow-gray-200 hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-2 text-lg"
-                aria-label="Complete mission"
+                aria-label="Done with this mission"
               >
-                <CheckCircle className="w-6 h-6" />
-                Complete
+                <CheckCircle className="w-6 h-6" aria-hidden="true" />
+                Done
               </button>
             </div>
           </div>

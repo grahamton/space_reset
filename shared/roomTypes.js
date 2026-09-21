@@ -10,49 +10,49 @@ export const ROOM_TYPES = {
     id: 'bedroom',
     name: 'Bedroom',
     icon: '🛏️',
-    description: 'Focus on laundry, organizing, surfaces',
+    description: 'Laundry, nightstand, floor and surfaces',
     commonTasks: ['laundry', 'clear', 'organize']
   },
   kitchen: {
     id: 'kitchen',
     name: 'Kitchen',
     icon: '🍳',
-    description: 'Focus on dishes, food waste, counters',
+    description: 'Dishes, food waste, counters and sink',
     commonTasks: ['dishes', 'trash', 'clear']
   },
   living_room: {
     id: 'living_room',
     name: 'Living Room',
     icon: '🛋️',
-    description: 'Focus on clutter, surfaces, sweeping',
+    description: 'Coffee table, sofa, floor clutter',
     commonTasks: ['clear', 'organize', 'trash']
   },
   bathroom: {
     id: 'bathroom',
     name: 'Bathroom',
     icon: '🚿',
-    description: 'Focus on surfaces, organization, mirrors',
+    description: 'Counter, towels, bottles and floor',
     commonTasks: ['clear', 'organize', 'trash']
   },
   garage: {
     id: 'garage',
     name: 'Garage',
     icon: '🚗',
-    description: 'Focus on large items, sweeping, organization',
+    description: 'Floor space, boxes, tools and large items',
     commonTasks: ['clear', 'organize', 'trash']
   },
   office: {
     id: 'office',
     name: 'Office/Study',
     icon: '💻',
-    description: 'Focus on desk, papers, surfaces',
+    description: 'Desk, papers, cups and cables',
     commonTasks: ['clear', 'organize', 'trash']
   },
   other: {
     id: 'other',
     name: 'Other',
     icon: '📦',
-    description: 'Custom room type',
+    description: 'Any other space. We will read the photo',
     commonTasks: []
   }
 };
@@ -61,7 +61,7 @@ export const DIFFICULTY_LEVELS = {
   easy: {
     id: 'easy',
     name: 'Easy',
-    description: 'Quick 5-minute missions, less challenging',
+    description: 'Running on empty: 3 tiny missions, 5 minutes max',
     timePerMission: 300, // 5 min
     missionCount: 3,
     multiplier: 0.7 // only applied to the offline fallback missions
@@ -69,7 +69,7 @@ export const DIFFICULTY_LEVELS = {
   medium: {
     id: 'medium',
     name: 'Medium',
-    description: 'Standard missions, balanced challenge',
+    description: 'Some fuel in the tank: 4 missions, up to 10 minutes',
     timePerMission: 600, // 10 min
     missionCount: 4,
     multiplier: 1.0
@@ -77,7 +77,7 @@ export const DIFFICULTY_LEVELS = {
   hard: {
     id: 'hard',
     name: 'Hard',
-    description: 'Ambitious goals, longer time boxes',
+    description: 'Ready to go: 5 bigger missions, up to 15 minutes',
     timePerMission: 900, // 15 min
     missionCount: 5,
     multiplier: 1.3

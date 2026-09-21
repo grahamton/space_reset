@@ -209,7 +209,7 @@ export default function App() {
             onClick={() => setActivePanel('history')}
             className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
           >
-            View Session History
+            See past sessions
           </button>
           <button
             onClick={closePanel}

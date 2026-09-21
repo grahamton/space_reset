@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ChevronLeft, Calendar, Clock, Target } from 'lucide-react';
 import { getHistoryFiltered } from '../modules/historyModule';
+import { PERSONAS } from '../../shared/personas.js';
+import { ROOM_TYPES } from '../../shared/roomTypes.js';
 
 const SessionHistory = ({ onClose }) => {
   const [filter, setFilter] = useState('all');
@@ -17,6 +19,12 @@ const SessionHistory = ({ onClose }) => {
       year: 'numeric'
     });
   };
+
+  // Show display names, not stored ids like 'living_room' or 'drillSergeant'.
+  const describeSession = (session) =>
+    [ROOM_TYPES[session.roomType]?.name, PERSONAS[session.personaId]?.name]
+      .filter(Boolean)
+      .join(' · ') || 'Cleaning session';
 
   const formatTime = (seconds) => {
     if (seconds < 60) return `${seconds}s`;
@@ -41,24 +49,25 @@ const SessionHistory = ({ onClose }) => {
         <button
           onClick={onClose}
           className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-          aria-label="Back to home"
+          aria-label="Back"
         >
-          <ChevronLeft className="w-6 h-6" />
+          <ChevronLeft className="w-6 h-6" aria-hidden="true" />
         </button>
-        <h1 className="text-2xl font-bold text-gray-900">Session History</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Past sessions</h1>
       </header>
 
       {/* Filters */}
       <div className="px-6 py-4 border-b border-gray-100 flex gap-2 overflow-x-auto">
         {[
           { id: 'all', label: 'All' },
-          { id: 'week', label: 'This Week' },
-          { id: 'month', label: 'This Month' },
-          { id: 'completed', label: 'Completed Only' }
+          { id: 'week', label: 'Last 7 days' },
+          { id: 'month', label: 'Last 30 days' },
+          { id: 'completed', label: 'All missions done' }
         ].map((f) => (
           <button
             key={f.id}
             onClick={() => setFilter(f.id)}
+            aria-pressed={filter === f.id}
             className={`px-4 py-2 rounded-full font-medium whitespace-nowrap transition-all ${
               filter === f.id
                 ? 'bg-indigo-600 text-white'
@@ -75,12 +84,12 @@ const SessionHistory = ({ onClose }) => {
         {history.length === 0 ? (
           <div className="flex items-center justify-center h-96">
             <div className="text-center space-y-3">
-              <p className="text-gray-500 text-lg">No sessions found</p>
+              <p className="text-gray-500 text-lg">Nothing here yet</p>
               <p className="text-gray-400 text-sm">
-                {filter === 'completed' && 'Complete a session to see it here'}
-                {filter === 'week' && 'Start a session this week'}
-                {filter === 'month' && 'Start a session this month'}
-                {filter === 'all' && 'Your session history will appear here'}
+                {filter === 'completed' && 'Sessions where you clear every mission show up here.'}
+                {filter === 'week' && 'No sessions in the last 7 days. Start one whenever.'}
+                {filter === 'month' && 'No sessions in the last 30 days. Start one whenever.'}
+                {filter === 'all' && 'Finish a session and it shows up here.'}
               </p>
             </div>
           </div>
@@ -100,10 +109,7 @@ const SessionHistory = ({ onClose }) => {
                     <p className="text-sm font-bold text-gray-500 uppercase">
                       {formatDate(session.date)}
                     </p>
-                    <p className="font-bold text-gray-900 mt-1">
-                      {session.roomType ? `${session.roomType.charAt(0).toUpperCase() + session.roomType.slice(1)} · ` : ''}
-                      {session.personaId || 'Unknown'}
-                    </p>
+                    <p className="font-bold text-gray-900 mt-1">{describeSession(session)}</p>
                   </div>
                   <div className={`px-3 py-1 rounded-full text-sm font-bold ${getCompletionColor(session.completedCount, session.missionCount)}`}>
                     {completionPercent}%
@@ -113,17 +119,17 @@ const SessionHistory = ({ onClose }) => {
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="flex items-center gap-2 text-sm">
-                    <Target className="w-4 h-4 text-gray-400" />
+                    <Target className="w-4 h-4 text-gray-400" aria-hidden="true" />
                     <span className="text-gray-700">
-                      {session.completedCount}/{session.missionCount} missions
+                      {session.completedCount} of {session.missionCount} done
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <Clock className="w-4 h-4 text-gray-400" />
+                    <Clock className="w-4 h-4 text-gray-400" aria-hidden="true" />
                     <span className="text-gray-700">{formatTime(session.totalTime || 0)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-gray-400" />
+                    <Calendar className="w-4 h-4 text-gray-400" aria-hidden="true" />
                     <span className="text-gray-700">
                       {new Date(session.timestamp).toLocaleTimeString('en-US', {
                         hour: 'numeric',
@@ -134,7 +140,7 @@ const SessionHistory = ({ onClose }) => {
                 </div>
 
                 {/* Progress Bar */}
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-gray-200 rounded-full h-2" aria-hidden="true">
                   <div
                     className="bg-indigo-600 h-2 rounded-full transition-all"
                     style={{ width: `${completionPercent}%` }}
