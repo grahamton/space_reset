@@ -104,7 +104,7 @@ describe('storageModule', () => {
       expect(loadTimer(MISSION)).toBeNull();
     });
 
-    it('should not return another mission\'s timer', () => {
+    it("should not return another mission's timer", () => {
       saveTimer(MISSION, 120, true);
 
       // Regression: a single shared key meant a paused timer from one mission
@@ -136,6 +136,40 @@ describe('storageModule', () => {
       const { timeLeft, isActive } = loadTimer(MISSION);
       expect(timeLeft).toBe(0);
       expect(isActive).toBeFalsy();
+    });
+  });
+
+  describe('Timer phases', () => {
+    const MISSION = 'm1';
+    const seedTimer = (state) =>
+      localStorage.setItem('timer_state', JSON.stringify({ missionId: MISSION, ...state }));
+
+    it('lands on timesUp when a running countdown expired while closed', () => {
+      seedTimer({ timeLeft: 60, isActive: true, phase: 'counting', savedAt: Date.now() - 200000 });
+      expect(loadTimer(MISSION)).toEqual({ timeLeft: 0, isActive: false, phase: 'timesUp' });
+    });
+
+    it('adds elapsed time to running overtime', () => {
+      seedTimer({ timeLeft: 42, isActive: true, phase: 'overtime', savedAt: Date.now() - 30000 });
+      const { timeLeft, phase } = loadTimer(MISSION);
+      expect(phase).toBe('overtime');
+      expect(timeLeft).toBeGreaterThanOrEqual(71);
+      expect(timeLeft).toBeLessThanOrEqual(73);
+    });
+
+    it('keeps paused overtime as-is', () => {
+      saveTimer(MISSION, 42, false, 'overtime');
+      expect(loadTimer(MISSION)).toEqual({ timeLeft: 42, isActive: false, phase: 'overtime' });
+    });
+
+    it('returns nothing to restore for a finished mission', () => {
+      saveTimer(MISSION, 0, false, 'done');
+      expect(loadTimer(MISSION)).toBeNull();
+    });
+
+    it('treats timers saved before phases existed as countdowns', () => {
+      seedTimer({ timeLeft: 90, isActive: false, savedAt: Date.now() });
+      expect(loadTimer(MISSION)).toEqual({ timeLeft: 90, isActive: false, phase: 'counting' });
     });
   });
 

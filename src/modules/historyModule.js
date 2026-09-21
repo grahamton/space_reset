@@ -3,6 +3,8 @@
  * Enables gamification and progress tracking for ADHD users
  */
 
+import { loadPreference } from './storageModule';
+
 const STORAGE_KEY_HISTORY = 'session_history';
 const STORAGE_KEY_STATS = 'user_statistics';
 const STORAGE_KEY_LAST_SESSION_DATE = 'last_session_date';
@@ -93,13 +95,25 @@ export const getHistoryFiltered = (filters = {}) => {
 };
 
 /**
- * Calculate current streak (consecutive days with at least 1 completed mission)
+ * Whether a session with at least one completed mission (rather than every
+ * mission) keeps the streak alive. Defaults to true: an ADHD user who starts
+ * and skips still showed up. 'Completionist' and the "with every mission
+ * done" stats stay all-done regardless of this setting.
  */
-export const calculateStreak = () => {
+export const isStreakIncludingSkips = () =>
+  loadPreference('STREAK_INCLUDES_SKIPS', 'true') !== 'false';
+
+const sessionCountsForStreak = (session, includeSkips) =>
+  includeSkips ? session.completedCount > 0 : session.completedCount === session.missionCount;
+
+/**
+ * Calculate current streak (consecutive days meeting the streak bar above).
+ */
+export const calculateStreak = (includeSkips = isStreakIncludingSkips()) => {
   const history = loadHistory();
   if (history.length === 0) return 0;
 
-  const completed = history.filter((s) => s.completedCount === s.missionCount);
+  const completed = history.filter((s) => sessionCountsForStreak(s, includeSkips));
   if (completed.length === 0) return 0;
 
   // Get unique dates sorted descending

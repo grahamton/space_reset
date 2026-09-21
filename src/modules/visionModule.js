@@ -5,7 +5,12 @@
  * transport. See worker/src/index.js.
  */
 
-import { applyDifficultyToMissions, DEFAULT_DIFFICULTY } from '../../shared/roomTypes.js';
+import {
+  applyDifficultyToMissions,
+  normalizeMissionCount,
+  DEFAULT_DIFFICULTY,
+  DEFAULT_MISSION_COUNT
+} from '../../shared/roomTypes.js';
 
 // Dev goes through the Vite proxy (see vite.config.js); production builds set
 // VITE_WORKER_URL to the deployed worker.
@@ -15,6 +20,9 @@ const MISSIONS_ENDPOINT = import.meta.env.VITE_WORKER_URL
 
 /** Offline missions, used only when the user explicitly opts in after a failure. */
 export const DEFAULT_FALLBACK_DATA = {
+  status: 'ok',
+  // No persona voiced these, so there's nothing in-character to say.
+  note: '',
   missions: [
     {
       id: 'm1',
@@ -28,7 +36,8 @@ export const DEFAULT_FALLBACK_DATA = {
     {
       id: 'm2',
       title: 'Laundry Raid',
-      description: 'Grab a basket. Swoop up all clothes on the floor. Do not sort them. Just contain them.',
+      description:
+        'Grab a basket. Swoop up all clothes on the floor. Do not sort them. Just contain them.',
       time: 180,
       type: 'laundry',
       strategy: 'Containment is the goal, not perfection.'
@@ -55,10 +64,20 @@ export const DEFAULT_FALLBACK_DATA = {
 /**
  * Fallback missions have hardcoded, difficulty-blind times, so they get the
  * multiplier. Live missions are paced by the prompt instead.
+ *
+ * There are only a handful of these canned missions, so a fixed count can only
+ * be honored by trimming, never padded out with invented ones — same honesty
+ * principle as the live prompt. 'auto' returns the full set.
  */
-export const getFallbackMissions = (difficulty = DEFAULT_DIFFICULTY) => ({
-  missions: applyDifficultyToMissions(DEFAULT_FALLBACK_DATA.missions, difficulty)
-});
+export const getFallbackMissions = (
+  difficulty = DEFAULT_DIFFICULTY,
+  missionCount = DEFAULT_MISSION_COUNT
+) => {
+  const sized = applyDifficultyToMissions(DEFAULT_FALLBACK_DATA.missions, difficulty);
+  const count = normalizeMissionCount(missionCount);
+  const missions = count === 'auto' ? sized : sized.slice(0, count);
+  return { status: DEFAULT_FALLBACK_DATA.status, note: DEFAULT_FALLBACK_DATA.note, missions };
+};
 
 const fileToBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -73,7 +92,15 @@ export const visionModule = {
    * @throws {Error} with a message suitable for display. Callers decide whether
    *   to offer the offline fallback — this never substitutes it silently.
    */
-  analyzeImage: async (file, { personaId, roomType, difficulty = DEFAULT_DIFFICULTY } = {}) => {
+  analyzeImage: async (
+    file,
+    {
+      personaId,
+      roomType,
+      difficulty = DEFAULT_DIFFICULTY,
+      missionCount = DEFAULT_MISSION_COUNT
+    } = {}
+  ) => {
     const image = await fileToBase64(file);
 
     let response;
@@ -81,7 +108,14 @@ export const visionModule = {
       response = await fetch(MISSIONS_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image, mimeType: file.type, personaId, roomType, difficulty })
+        body: JSON.stringify({
+          image,
+          mimeType: file.type,
+          personaId,
+          roomType,
+          difficulty,
+          missionCount
+        })
       });
     } catch {
       throw new Error("Can't connect right now. Check your internet, then try again.");
@@ -92,7 +126,9 @@ export const visionModule = {
     if (!response.ok) {
       throw new Error(payload.error || 'Something went wrong reading your photo. Try again.');
     }
-    if (!payload.missions?.length) {
+    // A 'retake' or 'tidy' response can legitimately carry zero missions — only
+    // an 'ok' with nothing in it means something went wrong.
+    if (payload.status === 'ok' && !payload.missions?.length) {
       throw new Error("Couldn't find any missions in that photo. Try a wider shot of the room.");
     }
 

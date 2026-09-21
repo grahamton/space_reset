@@ -27,8 +27,8 @@ const mission = (id, type = 'trash') => ({
 
 const PREFS = { personaId: 'gentle', roomType: 'bedroom', difficulty: 'medium' };
 
-const startWith = async (missions) => {
-  visionModule.analyzeImage.mockResolvedValue({ missions });
+const startWith = async (missions, status = 'ok', note = null) => {
+  visionModule.analyzeImage.mockResolvedValue({ status, note, missions });
   const hook = renderHook(() => useMissionControl(PREFS));
   await act(async () => {
     await hook.result.current.startAnalysis(new File([''], 'room.jpg', { type: 'image/jpeg' }));
@@ -162,5 +162,40 @@ describe('useMissionControl', () => {
 
     expect(result.current.sessionState.status).toBe('active');
     expect(result.current.sessionState.missionQueue.length).toBeGreaterThan(0);
+  });
+
+  it('keeps the persona note in session state for an ok session', async () => {
+    const { result } = await startWith([mission('a')], 'ok', 'Alright, let’s move.');
+
+    expect(result.current.sessionState.status).toBe('active');
+    expect(result.current.sessionState.note).toBe('Alright, let’s move.');
+  });
+
+  it('does not start a session on retake; surfaces the note as info, not an error', async () => {
+    const note = 'Too blurry to see. Try again from the doorway.';
+    const { result } = await startWith([], 'retake', note);
+
+    expect(result.current.sessionState.status).toBe('idle');
+    expect(result.current.sessionState.info).toBe(note);
+    expect(result.current.sessionState.error).toBeNull();
+    expect(result.current.sessionState.missionQueue).toHaveLength(0);
+  });
+
+  it('treats a tidy room with no missions like retake: back to idle with the note', async () => {
+    const note = 'Already looking good in here.';
+    const { result } = await startWith([], 'tidy', note);
+
+    expect(result.current.sessionState.status).toBe('idle');
+    expect(result.current.sessionState.info).toBe(note);
+    expect(result.current.sessionState.missionQueue).toHaveLength(0);
+  });
+
+  it('starts a real session for a tidy room with a couple of small missions', async () => {
+    const note = 'Nice, just a couple of resets.';
+    const { result } = await startWith([mission('a')], 'tidy', note);
+
+    expect(result.current.sessionState.status).toBe('active');
+    expect(result.current.sessionState.note).toBe(note);
+    expect(result.current.sessionState.missionQueue).toHaveLength(1);
   });
 });

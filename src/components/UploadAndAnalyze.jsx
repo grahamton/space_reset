@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Camera, ImageIcon, AlertCircle, ChevronDown, RotateCcw } from 'lucide-react';
 import { PERSONAS } from '../../shared/personas.js';
 import { getSessionSummary } from '../modules/storageModule';
@@ -12,16 +12,18 @@ const UploadAndAnalyze = ({
   onResume,
   onUseFallback,
   error,
+  info,
   selectedPersonaId,
   onPersonaChange,
   hasSession
 }) => {
   const fileInputRef = useRef(null);
+  const [validationError, setValidationError] = useState(null);
 
   const validateFile = (file) => {
     // Check file size
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      alert(
+      setValidationError(
         `That photo is ${(file.size / 1024 / 1024).toFixed(1)} MB, and the limit is ${MAX_FILE_SIZE_MB} MB. Try a screenshot of it instead.`
       );
       return false;
@@ -29,7 +31,7 @@ const UploadAndAnalyze = ({
 
     // Check MIME type
     if (!file.type.startsWith('image/')) {
-      alert("That file isn't a photo. Pick an image instead.");
+      setValidationError("That file isn't a photo. Pick an image instead.");
       return false;
     }
 
@@ -38,7 +40,7 @@ const UploadAndAnalyze = ({
 
   const validateDimensions = (img) => {
     if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
-      alert(
+      setValidationError(
         `That photo is ${img.width}×${img.height} px, and the limit is ${MAX_DIMENSION} px on each side. Try a screenshot of it instead.`
       );
       return false;
@@ -49,6 +51,9 @@ const UploadAndAnalyze = ({
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Clear validation error when new file is picked
+    setValidationError(null);
 
     // Validate file
     if (!validateFile(file)) {
@@ -67,13 +72,13 @@ const UploadAndAnalyze = ({
         e.target.value = '';
       };
       img.onerror = () => {
-        alert("Couldn't open that photo. Try a different one.");
+        setValidationError("Couldn't open that photo. Try a different one.");
         e.target.value = '';
       };
       img.src = event.target.result;
     };
     reader.onerror = () => {
-      alert("Couldn't read that file. Try a different photo.");
+      setValidationError("Couldn't read that file. Try a different photo.");
       e.target.value = '';
     };
     reader.readAsDataURL(file);
@@ -88,7 +93,7 @@ const UploadAndAnalyze = ({
         <p className="text-gray-500 text-lg max-w-xs mx-auto leading-relaxed">
           Don't clean everything.
           <br />
-          Just do <span className="text-indigo-600 font-bold">5 Things</span>.
+          Just <span className="text-indigo-600 font-bold">start somewhere</span>.
         </p>
       </div>
 
@@ -174,17 +179,29 @@ const UploadAndAnalyze = ({
         />
       </button>
 
+      {/* Info Display (e.g. a friendly "try another photo" note) — not an error */}
+      {info && !error && !validationError && (
+        <div
+          className="flex items-center gap-2 text-indigo-700 bg-indigo-50 px-4 py-3 rounded-xl text-sm border border-indigo-100 shadow-sm max-w-xs w-full"
+          role="status"
+        >
+          <Camera className="w-5 h-5 shrink-0" aria-hidden="true" />
+          {info}
+        </div>
+      )}
+
       {/* Error Display */}
-      {error && (
+      {(error || validationError) && (
         <div className="max-w-xs w-full space-y-2">
           <div
             className="flex items-center gap-2 text-red-600 bg-red-50 px-4 py-3 rounded-xl text-sm border border-red-100 shadow-sm"
             role="alert"
           >
             <AlertCircle className="w-5 h-5 shrink-0" aria-hidden="true" />
-            {error}
+            {validationError || error}
           </div>
-          {onUseFallback && (
+          {/* Ready-made missions help when analysis failed, not when the file was rejected. */}
+          {error && !validationError && onUseFallback && (
             <button
               onClick={onUseFallback}
               className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors"

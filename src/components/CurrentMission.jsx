@@ -1,71 +1,153 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, CheckCircle, Clock, SkipForward, Plus, Layers } from 'lucide-react';
 import { saveTimer, loadTimer } from '../modules/storageModule';
+import { primeAudioContext, fireTimesUpAlerts } from '../modules/timerAlerts';
 
-const CurrentMission = ({ mission, onComplete, onSkip, totalMissions, currentIndex, queueLength }) => {
+const CurrentMission = ({
+  mission,
+  onComplete,
+  onSkip,
+  totalMissions,
+  currentIndex,
+  queueLength
+}) => {
   const [timeLeft, setTimeLeft] = useState(mission.time || 180);
   const [isActive, setIsActive] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
+  // 'counting' - normal countdown. 'timesUp' - zero reached, awaiting a
+  // choice. 'overtime' - "Keep going" was chosen; counting up, no deadline.
+  const [phase, setPhase] = useState('counting');
+  const [overtimeSeconds, setOvertimeSeconds] = useState(0);
+  // Guards the zero-crossing alert so it fires once per crossing: not again
+  // on re-render, and not on mount when reloading an already-expired timer
+  // (that branch below never calls fireTimesUpAlerts). Reset when a fresh
+  // countdown starts (new mission, or "More time").
+  const alertedRef = useRef(false);
 
   // Restore this mission's own timer, or start a fresh time box.
   useEffect(() => {
+    alertedRef.current = false;
     const saved = loadTimer(mission.id);
-    if (saved && saved.timeLeft > 0) {
+
+    if (saved?.phase === 'overtime') {
+      setPhase('overtime');
+      setOvertimeSeconds(saved.timeLeft);
+      setIsActive(saved.isActive);
+      setTimeLeft(0);
+    } else if (saved?.phase === 'timesUp') {
+      // Reached zero (possibly while the tab was closed). Show the prompt,
+      // but never blast a sound/notification for a crossing that already
+      // happened out of view.
+      setPhase('timesUp');
+      setTimeLeft(0);
+      setIsActive(false);
+    } else if (saved) {
+      setPhase('counting');
       setTimeLeft(saved.timeLeft);
       setIsActive(saved.isActive);
     } else {
+      setPhase('counting');
       setTimeLeft(mission.time || 180);
       setIsActive(false);
     }
     setIsFinishing(false);
   }, [mission.id, mission.time]);
 
-  // Timer countdown with proper cleanup
+  // Countdown, while there's a deadline. A functional update so the
+  // interval survives without needing a render in between each tick.
   useEffect(() => {
     let interval = null;
 
-    if (isActive && timeLeft > 0) {
+    if (phase === 'counting' && isActive) {
       interval = setInterval(() => {
-        setTimeLeft((prevTime) => {
-          const newTime = prevTime - 1;
-          // Save timer state on every tick
-          saveTimer(mission.id, newTime, newTime > 0);
+        setTimeLeft((prev) => {
+          const newTime = prev - 1;
+          if (newTime <= 0) {
+            saveTimer(mission.id, 0, false, 'timesUp');
+            setIsActive(false);
+            setPhase('timesUp');
+            if (!alertedRef.current) {
+              alertedRef.current = true;
+              fireTimesUpAlerts(mission.title);
+            }
+            return 0;
+          }
+          saveTimer(mission.id, newTime, true);
           return newTime;
         });
       }, 1000);
-    } else if (timeLeft === 0) {
-      setIsActive(false);
-      saveTimer(mission.id, 0, false);
     }
 
-    // Proper cleanup: always clear interval on unmount or when deps change
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, timeLeft, mission.id]);
+  }, [phase, isActive, mission.id, mission.title]);
+
+  // Overtime counts up instead, same functional-update shape.
+  useEffect(() => {
+    let interval = null;
+
+    if (phase === 'overtime' && isActive) {
+      interval = setInterval(() => {
+        setOvertimeSeconds((prev) => {
+          const next = prev + 1;
+          saveTimer(mission.id, next, true, 'overtime');
+          return next;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [phase, isActive, mission.id]);
 
   const handleComplete = () => {
     setIsFinishing(true);
-    saveTimer(mission.id, 0, false);
+    saveTimer(mission.id, 0, false, 'done');
     setTimeout(onComplete, 300);
   };
 
   const handleSkip = () => {
     setIsFinishing(true);
-    saveTimer(mission.id, 0, false);
+    saveTimer(mission.id, 0, false, 'done');
     setTimeout(onSkip, 300);
   };
 
   const toggleTimer = () => {
     const newActive = !isActive;
+    // Starting the timer is a user gesture - the best (and maybe only)
+    // chance to unlock audio before zero is reached on its own.
+    if (newActive) primeAudioContext();
     setIsActive(newActive);
-    saveTimer(mission.id, timeLeft, newActive);
+    if (phase === 'overtime') saveTimer(mission.id, overtimeSeconds, newActive, 'overtime');
+    else saveTimer(mission.id, timeLeft, newActive);
   };
 
   const addOneMinute = () => {
     const newTime = timeLeft + 60;
     setTimeLeft(newTime);
     saveTimer(mission.id, newTime, isActive);
+  };
+
+  // "Keep going": dismiss the prompt, no more deadline, count up instead.
+  const handleKeepGoing = () => {
+    setPhase('overtime');
+    setOvertimeSeconds(0);
+    setIsActive(true);
+    saveTimer(mission.id, 0, true, 'overtime');
+  };
+
+  // "More time": add minutes and restart the countdown.
+  const handleMoreTime = (minutes) => {
+    const newTime = minutes * 60;
+    alertedRef.current = false;
+    setPhase('counting');
+    setOvertimeSeconds(0);
+    setTimeLeft(newTime);
+    setIsActive(true);
+    primeAudioContext();
+    saveTimer(mission.id, newTime, true);
   };
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
@@ -112,7 +194,9 @@ const CurrentMission = ({ mission, onComplete, onSkip, totalMissions, currentInd
         >
           {/* Scrollable Content Area */}
           <div className="flex-1 overflow-y-auto pr-1 min-h-0 mb-4">
-            <div className={`inline-block px-3 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider mb-3 ${themeClass}`}>
+            <div
+              className={`inline-block px-3 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider mb-3 ${themeClass}`}
+            >
               {mission.type || 'Mission'}
             </div>
 
@@ -120,9 +204,7 @@ const CurrentMission = ({ mission, onComplete, onSkip, totalMissions, currentInd
               {mission.title}
             </h3>
 
-            <p className="text-gray-600 text-lg leading-relaxed mb-6">
-              {mission.description}
-            </p>
+            <p className="text-gray-600 text-lg leading-relaxed mb-6">{mission.description}</p>
 
             {mission.strategy && (
               <div className="bg-gray-50 p-4 rounded-xl border-l-4 border-indigo-200 mb-2">
@@ -134,37 +216,79 @@ const CurrentMission = ({ mission, onComplete, onSkip, totalMissions, currentInd
 
           {/* Fixed Bottom Controls */}
           <div className="shrink-0 space-y-4 bg-white pt-2 border-t border-gray-50">
-            <div className="bg-gray-50 rounded-2xl p-3">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-gray-400 uppercase">Timer</span>
-                <button
-                  onClick={addOneMinute}
-                  className="text-xs font-bold text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded flex items-center gap-1 transition-colors"
-                  aria-label="Add 1 minute"
-                >
-                  <Plus className="w-3 h-3" aria-hidden="true" /> 1 min
-                </button>
+            {phase === 'counting' && (
+              <div className="bg-gray-50 rounded-2xl p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-bold text-gray-400 uppercase">Timer</span>
+                  <button
+                    onClick={addOneMinute}
+                    className="text-xs font-bold text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded flex items-center gap-1 transition-colors"
+                    aria-label="Add 1 minute"
+                  >
+                    <Plus className="w-3 h-3" aria-hidden="true" /> 1 min
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div
+                    role="timer"
+                    className={`text-4xl font-mono font-bold tracking-tighter transition-colors ${timeLeft < 30 && isActive ? 'text-red-500' : 'text-gray-800'}`}
+                  >
+                    {formatTime(timeLeft)}
+                  </div>
+                  <button
+                    onClick={toggleTimer}
+                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isActive ? 'bg-orange-100 text-orange-600' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'}`}
+                    aria-label={isActive ? 'Pause timer' : 'Start timer'}
+                  >
+                    {isActive ? (
+                      <Clock className="w-5 h-5" aria-hidden="true" />
+                    ) : (
+                      <Play className="w-5 h-5 ml-1" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center justify-between">
+            )}
+
+            {phase === 'timesUp' && (
+              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-center space-y-3">
+                <div>
+                  <p className="text-sm font-extrabold text-indigo-900">Time's up on this one.</p>
+                  <p className="text-xs text-indigo-700 mt-1">
+                    No rush - keep going, grab more time, or call it Done below.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={handleKeepGoing}
+                    className="px-3 py-2.5 bg-white text-indigo-700 border border-indigo-200 rounded-xl font-bold text-sm hover:bg-indigo-100 transition-colors"
+                    aria-label="Keep going without a deadline"
+                  >
+                    Keep going
+                  </button>
+                  <button
+                    onClick={() => handleMoreTime(5)}
+                    className="px-3 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1"
+                    aria-label="Add 5 more minutes and restart the timer"
+                  >
+                    <Plus className="w-4 h-4" aria-hidden="true" /> 5 min
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {phase === 'overtime' && (
+              <div className="bg-gray-50 rounded-2xl p-3 text-center">
+                <p className="text-xs font-bold text-gray-400 uppercase mb-1">Overtime</p>
                 <div
                   role="timer"
-                  className={`text-4xl font-mono font-bold tracking-tighter transition-colors ${timeLeft < 30 && isActive ? 'text-red-500' : 'text-gray-800'}`}
+                  className="text-4xl font-mono font-bold tracking-tighter text-indigo-500"
                 >
-                  {formatTime(timeLeft)}
+                  +{formatTime(overtimeSeconds)}
                 </div>
-                <button
-                  onClick={toggleTimer}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isActive ? 'bg-orange-100 text-orange-600' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'}`}
-                  aria-label={isActive ? 'Pause timer' : 'Start timer'}
-                >
-                  {isActive ? (
-                    <Clock className="w-5 h-5" aria-hidden="true" />
-                  ) : (
-                    <Play className="w-5 h-5 ml-1" aria-hidden="true" />
-                  )}
-                </button>
+                <p className="text-xs text-gray-500 mt-1">Keep going as long as you need.</p>
               </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-[auto_1fr] gap-3">
               <button

@@ -3,17 +3,37 @@ import { describe, it, expect } from 'vitest';
 import {
   buildMissionPrompt,
   getDifficultyPromptAddition,
-  getRoomTypePromptAddition
+  getRoomTypePromptAddition,
+  getMissionCountInstruction
 } from '../prompt.js';
 import { PERSONAS, DEFAULT_PERSONA } from '../personas.js';
 import { DIFFICULTY_LEVELS, MISSION_TYPES, getAllDifficulties } from '../roomTypes.js';
 
 describe('buildMissionPrompt', () => {
-  it('asks for at most the difficulty mission count, not an exact number', () => {
-    for (const { id, missionCount } of getAllDifficulties()) {
-      expect(buildMissionPrompt({ difficulty: id })).toContain(
-        `up to ${missionCount} cleaning missions`
-      );
+  it('defaults to letting the photo decide the count, roughly 3 to 6', () => {
+    const prompt = buildMissionPrompt();
+    expect(prompt).toMatch(/roughly 3 to 6/);
+    expect(prompt).not.toMatch(/up to \d+ cleaning missions/);
+  });
+
+  it('lets the photo decide when missionCount is explicitly "auto"', () => {
+    const prompt = buildMissionPrompt({ missionCount: 'auto' });
+    expect(getMissionCountInstruction('auto')).toMatch(/Let the photo decide how many/);
+    expect(prompt).toMatch(/roughly 3 to 6/);
+  });
+
+  it('asks for up to a fixed number when a mission count is given', () => {
+    for (const n of [1, 3, 8]) {
+      const prompt = buildMissionPrompt({ missionCount: n });
+      expect(prompt).toContain(`up to ${n} cleaning missions`);
+      expect(getMissionCountInstruction(n)).toContain(`up to ${n} cleaning missions`);
+    }
+  });
+
+  it('keeps mission count independent of difficulty', () => {
+    for (const { id } of getAllDifficulties()) {
+      const prompt = buildMissionPrompt({ difficulty: id, missionCount: 4 });
+      expect(prompt).toContain('up to 4 cleaning missions');
     }
   });
 
@@ -44,9 +64,17 @@ describe('buildMissionPrompt', () => {
   it('covers non-room photos, tidy rooms and people in frame', () => {
     const prompt = buildMissionPrompt();
     expect(prompt).toMatch(/not a room at all/);
-    expect(prompt).toMatch(/return exactly one mission/);
+    expect(prompt).toMatch(/status is "retake"/);
     expect(prompt).toMatch(/Already tidy/);
+    expect(prompt).toMatch(/status is "tidy"/);
     expect(prompt).toMatch(/Missions are about the room only/);
+  });
+
+  it('gives note-writing guidance for each status, without duplicating mission content', () => {
+    const prompt = buildMissionPrompt();
+    expect(prompt).toMatch(/## The note/);
+    expect(prompt).toMatch(/about 20 words max/);
+    expect(prompt).toMatch(/never mention anyone visible in the photo/);
   });
 
   it('treats the room type as a hint and omits it for "other"', () => {

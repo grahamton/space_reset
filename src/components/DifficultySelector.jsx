@@ -21,9 +21,7 @@ const DifficultySelector = ({ selectedDifficulty, onSelectDifficulty }) => {
     <div className="w-full space-y-4">
       <div className="text-center">
         <h3 className="text-lg font-bold text-gray-900 mb-2">How much energy today?</h3>
-        <p className="text-sm text-gray-600">
-          Changes how many missions you get and how long each one runs.
-        </p>
+        <p className="text-sm text-gray-600">Changes how big and ambitious each mission is.</p>
       </div>
 
       <div className="space-y-3">
@@ -49,9 +47,7 @@ const DifficultySelector = ({ selectedDifficulty, onSelectDifficulty }) => {
                 <p className="font-bold text-gray-900">{difficulty.name}</p>
                 <p className="text-sm text-gray-600">{difficulty.description}</p>
                 <div className="flex gap-2 mt-2 text-xs text-gray-500">
-                  <span>{difficulty.missionCount} missions</span>
-                  <span aria-hidden="true">•</span>
-                  <span>~{difficulty.timePerMission / 60} min each</span>
+                  <span>up to {difficulty.timePerMission / 60} min each</span>
                 </div>
               </div>
             </div>

@@ -5,8 +5,10 @@ import {
   calculateStreak,
   getAchievements,
   updateStats,
-  getStatsSummary
+  getStatsSummary,
+  isStreakIncludingSkips
 } from '../historyModule';
+import { savePreference } from '../storageModule';
 
 describe('historyModule', () => {
   beforeEach(() => {
@@ -127,7 +129,10 @@ describe('historyModule', () => {
       expect(calculateStreak()).toBe(1);
     });
 
-    it('should ignore incomplete sessions in streak', () => {
+    it('should ignore incomplete sessions in streak when skips are excluded', () => {
+      // STREAK_INCLUDES_SKIPS defaults to true (see the describe block below),
+      // so an incomplete session only breaks the streak under the strict,
+      // all-done setting.
       const today = new Date().toISOString().split('T')[0];
       saveSessionToHistory({
         date: today,
@@ -137,8 +142,94 @@ describe('historyModule', () => {
         totalTime: 600
       });
 
-      const streak = calculateStreak();
+      const streak = calculateStreak(false);
       expect(streak).toBe(0);
+    });
+  });
+
+  describe('Streak setting: STREAK_INCLUDES_SKIPS', () => {
+    it('defaults to true when no preference is stored', () => {
+      expect(isStreakIncludingSkips()).toBe(true);
+    });
+
+    it('reads the persisted preference', () => {
+      savePreference('STREAK_INCLUDES_SKIPS', 'false');
+      expect(isStreakIncludingSkips()).toBe(false);
+
+      savePreference('STREAK_INCLUDES_SKIPS', 'true');
+      expect(isStreakIncludingSkips()).toBe(true);
+    });
+
+    it('by default, a partially completed session still keeps the streak alive', () => {
+      const today = new Date().toISOString().split('T')[0];
+      saveSessionToHistory({
+        date: today,
+        personaId: 'gentle',
+        missionCount: 5,
+        completedCount: 1, // one mission done, rest skipped
+        totalTime: 120
+      });
+
+      expect(calculateStreak()).toBe(1);
+      expect(calculateStreak(true)).toBe(1);
+    });
+
+    it('with skips excluded, a partially completed session does not count', () => {
+      const today = new Date().toISOString().split('T')[0];
+      saveSessionToHistory({
+        date: today,
+        personaId: 'gentle',
+        missionCount: 5,
+        completedCount: 1,
+        totalTime: 120
+      });
+
+      expect(calculateStreak(false)).toBe(0);
+    });
+
+    it('respects the persisted preference when no override is passed', () => {
+      const today = new Date().toISOString().split('T')[0];
+      saveSessionToHistory({
+        date: today,
+        personaId: 'gentle',
+        missionCount: 5,
+        completedCount: 1,
+        totalTime: 120
+      });
+
+      savePreference('STREAK_INCLUDES_SKIPS', 'false');
+      expect(calculateStreak()).toBe(0);
+
+      savePreference('STREAK_INCLUDES_SKIPS', 'true');
+      expect(calculateStreak()).toBe(1);
+    });
+
+    it('counts an all-done session toward the streak under either setting', () => {
+      const today = new Date().toISOString().split('T')[0];
+      saveSessionToHistory({
+        date: today,
+        personaId: 'gentle',
+        missionCount: 3,
+        completedCount: 3,
+        totalTime: 400
+      });
+
+      expect(calculateStreak(true)).toBe(1);
+      expect(calculateStreak(false)).toBe(1);
+    });
+
+    it('never counts a zero-completion session, regardless of the setting', () => {
+      const today = new Date().toISOString().split('T')[0];
+      saveSessionToHistory({
+        date: today,
+        personaId: 'gentle',
+        missionCount: 4,
+        completedCount: 0,
+        totalTime: 0
+      });
+
+      expect(calculateStreak(true)).toBe(0);
+      expect(calculateStreak(false)).toBe(0);
     });
   });
 

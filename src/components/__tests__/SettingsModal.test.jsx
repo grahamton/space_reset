@@ -9,7 +9,11 @@ const defaultProps = {
   roomType: 'bedroom',
   onRoomTypeChange: vi.fn(),
   difficulty: 'medium',
-  onDifficultyChange: vi.fn()
+  onDifficultyChange: vi.fn(),
+  missionCount: 'auto',
+  onMissionCountChange: vi.fn(),
+  streakIncludesSkips: true,
+  onStreakIncludesSkipsChange: vi.fn()
 };
 
 const renderModal = (overrides = {}) => render(<SettingsModal {...defaultProps} {...overrides} />);
@@ -54,6 +58,59 @@ describe('SettingsModal', () => {
 
     fireEvent.click(screen.getByText('Easy'));
     expect(defaultProps.onDifficultyChange).toHaveBeenCalledWith('easy');
+  });
+
+  it('offers a mission count control, defaulting to Auto', () => {
+    renderModal();
+
+    expect(screen.getByText('How many missions?')).toBeInTheDocument();
+    const autoChip = screen.getByRole('button', { name: 'Auto' });
+    expect(autoChip).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('reports a mission count selection', () => {
+    renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: '3' }));
+    expect(defaultProps.onMissionCountChange).toHaveBeenCalledWith(3);
+  });
+
+  it('marks a fixed mission count as pressed, not Auto', () => {
+    renderModal({ missionCount: 4 });
+
+    expect(screen.getByRole('button', { name: 'Auto' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: '4' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('marks a fixed mission count loaded back as a string as pressed', () => {
+    // MISSION_COUNT round-trips through localStorage as a string.
+    renderModal({ missionCount: '4' });
+
+    expect(screen.getByRole('button', { name: '4' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('offers the streak toggle, on by default', () => {
+    renderModal();
+
+    expect(screen.getByText('Skipped missions still count')).toBeInTheDocument();
+    const toggle = screen.getByRole('button', { name: /Skipped missions still count/ });
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/finishing at least one mission/i)).toBeInTheDocument();
+  });
+
+  it('reports a streak toggle change', () => {
+    renderModal();
+
+    fireEvent.click(screen.getByRole('button', { name: /Skipped missions still count/ }));
+    expect(defaultProps.onStreakIncludesSkipsChange).toHaveBeenCalledWith(false);
+  });
+
+  it('shows the all-done copy when the streak toggle is off', () => {
+    renderModal({ streakIncludesSkips: false });
+
+    const toggle = screen.getByRole('button', { name: /Skipped missions still count/ });
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByText(/every mission in a session has to be done/i)).toBeInTheDocument();
   });
 
   it('closes on the close button', () => {

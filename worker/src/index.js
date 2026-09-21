@@ -10,7 +10,11 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 
 import { PERSONAS, DEFAULT_PERSONA } from '../../shared/personas.js';
-import { MISSION_TYPES, DEFAULT_DIFFICULTY } from '../../shared/roomTypes.js';
+import {
+  MISSION_TYPES,
+  DEFAULT_DIFFICULTY,
+  normalizeMissionCount
+} from '../../shared/roomTypes.js';
 import { buildMissionPrompt } from '../../shared/prompt.js';
 
 const MODEL = 'claude-opus-5';
@@ -25,8 +29,26 @@ const ACCEPTED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif
  *
  * `id` is deliberately absent — models are unreliable at inventing unique ids,
  * so the worker assigns them after parsing.
+ *
+ * Field order is generation order: judge the photo and voice that judgment in
+ * `note` first, then build the mission cards to match — a model that starts
+ * with the missions has no way to write an honest note about them afterward.
  */
 const MissionsSchema = z.object({
+  status: z
+    .enum(['ok', 'retake', 'tidy'])
+    .describe(
+      '"ok": a room with real mess to work on, missions follow. "retake": the photo is not usable ' +
+        '(blurry, dark, not a room, a screenshot). "tidy": already tidy or nearly so.'
+    ),
+  note: z
+    .string()
+    .describe(
+      'One line in the persona voice, about 20 words max. For "ok", a brief in-character intro to ' +
+        'the session — this is where personality gets room to breathe, since the mission cards stay ' +
+        'practical. For "retake", say honestly why the photo does not work and how to retake it. For ' +
+        '"tidy", say the room already looks good. Never about people in the photo, never a mission instruction.'
+    ),
   missions: z
     .array(
       // Field order is generation order: pick the category first, write the card,
@@ -53,8 +75,9 @@ const MissionsSchema = z.object({
           .describe('Time box in seconds, a multiple of 30, sized to the visible amount')
       })
     )
-    .min(1)
+    .min(0)
     .max(8)
+    .describe('Empty when status is "retake". 0 to 2 small resets when status is "tidy".')
 });
 
 const corsHeaders = (origin) => ({
@@ -125,7 +148,17 @@ export default {
       return json({ error: 'Expected a JSON body.' }, { status: 400, origin });
     }
 
-    const { image, mimeType, personaId, roomType, difficulty = DEFAULT_DIFFICULTY } = body ?? {};
+    const {
+      image,
+      mimeType,
+      personaId,
+      roomType,
+      difficulty = DEFAULT_DIFFICULTY,
+      missionCount
+    } = body ?? {};
+    // 'auto' or an integer 1-8; anything else (missing, malformed, out of range)
+    // becomes 'auto' rather than a 400 — this field is a nicety, not required.
+    const normalizedMissionCount = normalizeMissionCount(missionCount);
 
     if (typeof image !== 'string' || image.length === 0) {
       return json({ error: 'No image provided.' }, { status: 400, origin });
@@ -166,7 +199,14 @@ export default {
             role: 'user',
             content: [
               { type: 'image', source: { type: 'base64', media_type: mimeType, data: image } },
-              { type: 'text', text: buildMissionPrompt({ roomType, difficulty }) }
+              {
+                type: 'text',
+                text: buildMissionPrompt({
+                  roomType,
+                  difficulty,
+                  missionCount: normalizedMissionCount
+                })
+              }
             ]
           }
         ]
@@ -185,12 +225,21 @@ export default {
         return json({ error: 'Analysis came back garbled. Try again?' }, { status: 502, origin });
       }
 
+      const { status, note } = response.parsed_output;
+
+      // 'retake' is a valid, honest answer with no missions to give. An empty
+      // list under 'ok', though, means the model didn't follow the contract.
+      if (status === 'ok' && response.parsed_output.missions.length === 0) {
+        console.error('Status "ok" but no missions came back');
+        return json({ error: 'Analysis came back garbled. Try again?' }, { status: 502, origin });
+      }
+
       const missions = response.parsed_output.missions.map((mission, index) => ({
         ...mission,
         id: `m${index + 1}`
       }));
 
-      return json({ missions }, { origin });
+      return json({ status, note, missions }, { origin });
     } catch (error) {
       return errorResponse(error, origin);
     }

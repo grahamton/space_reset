@@ -7,7 +7,13 @@
  * judgement and length only — no JSON examples to drift out of sync.
  */
 
-import { getDifficulty, getRoomType, DEFAULT_DIFFICULTY, MISSION_TYPES } from './roomTypes.js';
+import {
+  getDifficulty,
+  getRoomType,
+  DEFAULT_DIFFICULTY,
+  DEFAULT_MISSION_COUNT,
+  MISSION_TYPES
+} from './roomTypes.js';
 
 /**
  * What each mission type means, following the "5 Things" method: every item in
@@ -52,14 +58,30 @@ export const getDifficultyPromptAddition = (difficultyId = DEFAULT_DIFFICULTY) =
 };
 
 /**
+ * Mission count is independent of difficulty: 'auto' lets the photo decide
+ * (roughly 3 to 6, fewer when there's less mess), a number pins a target the
+ * model should hit unless the photo honestly doesn't support that many.
+ */
+export const getMissionCountInstruction = (missionCount = DEFAULT_MISSION_COUNT) => {
+  if (missionCount === 'auto' || missionCount == null) {
+    return 'Look at this photo and create cleaning missions using the "5 Things" method. Let the photo decide how many: roughly 3 to 6, fewer when there is less mess to work with.';
+  }
+  return `Look at this photo and create up to ${missionCount} cleaning missions using the "5 Things" method.`;
+};
+
+/**
  * Build the user-turn text that accompanies the room photo.
  */
-export const buildMissionPrompt = ({ roomType, difficulty = DEFAULT_DIFFICULTY } = {}) => {
-  const { missionCount, timePerMission } = getDifficulty(difficulty);
+export const buildMissionPrompt = ({
+  roomType,
+  difficulty = DEFAULT_DIFFICULTY,
+  missionCount = DEFAULT_MISSION_COUNT
+} = {}) => {
+  const { timePerMission } = getDifficulty(difficulty);
   const maxMinutes = minutes(timePerMission);
 
   return [
-    `Look at this photo and create up to ${missionCount} cleaning missions using the "5 Things" method. Write every word in your own voice, staying in character.`,
+    `${getMissionCountInstruction(missionCount)} Write every word in your own voice, staying in character.`,
     '',
     '## Why the missions look the way they do',
     'Each mission is shown as a single card with a countdown timer on a phone. The user reads it mid-task, often while holding something, and an ADHD brain stalls on long text and open-ended decisions. So cards must be short, concrete and startable in the first ten seconds.',
@@ -85,9 +107,17 @@ export const buildMissionPrompt = ({ roomType, difficulty = DEFAULT_DIFFICULTY }
     `- time is in seconds, a round number (a multiple of 30). Size it to how much of that category is actually visible: a couple of plates is 1 to 2 minutes, a floor covered in clothes is much more. Never exceed ${timePerMission} seconds (${maxMinutes} minutes).`,
     '- Order the missions so the quickest visible win comes first; it builds momentum. Leave slower, more decision-heavy jobs such as papers and putting things away for last.',
     '',
-    '## When the photo does not show a messy room',
-    '- Blurry, dark, or not a room at all (a screenshot, a face, an abstract image, an outdoor scene): return exactly one mission. Title it as a retake in your voice, set type "clear" and time 60, say honestly and briefly that you could not see a room to work with, and ask for a photo taken from the doorway showing the floor and main surfaces. Do not invent a mess.',
-    '- Already tidy, or only a few things out of place: say so in your voice and return only the one or two small resets you can actually see. Do not manufacture work.',
+    '## Judging the photo',
+    '- A genuinely messy room: status is "ok". Build the missions as described above.',
+    '- Blurry, dark, or not a room at all (a screenshot, a face, an abstract image, an outdoor scene): status is "retake" and missions stays empty. Do not invent a mess to fill it.',
+    '- Already tidy, or only a few things out of place: status is "tidy". Return only the one or two small resets you can actually see — zero missions is fine when there is truly nothing to do. Do not manufacture work.',
+    '',
+    '## The note',
+    '- One line in your voice, about 20 words max, matching the status you chose.',
+    '- ok: a brief in-character intro to the session. This is where your personality gets room to breathe — the mission cards themselves stay practical, so this line is the voice payoff.',
+    '- retake: say honestly and briefly why the photo did not work, and how to retake it — from the doorway, showing the floor and main surfaces.',
+    '- tidy: say the room already looks good.',
+    "- Never repeat or restate a mission's instructions here, and never mention anyone visible in the photo — same rule as the missions themselves.",
     getRoomTypePromptAddition(roomType),
     '',
     '## Difficulty',

@@ -61,6 +61,8 @@ export const loadSession = () => {
       completedCount: parsed.completedCount || 0,
       startedAt: parsed.startedAt || savedAt,
       error: parsed.error || null,
+      // The persona's in-character line for this session, so a refresh keeps it.
+      note: parsed.note || null,
       // Carried through so a round trip through the app doesn't hide the
       // session's own age from the expiry check above.
       savedAt
@@ -73,21 +75,32 @@ export const loadSession = () => {
 };
 
 /**
+ * Timer phases:
+ *   counting - a normal countdown; `seconds` is time left
+ *   timesUp  - the countdown hit zero and is waiting for a choice
+ *   overtime - "Keep going" was chosen; `seconds` counts up from zero
+ *   done     - the mission was completed or skipped; restore a fresh time box
+ */
+export const TIMER_PHASES = ['counting', 'timesUp', 'overtime', 'done'];
+
+/**
  * Save timer state for a specific mission.
  *
  * Scoped by mission id: a single shared key meant a paused timer from one
  * mission was restored onto the next one instead of its own time box.
  *
  * @param {string} missionId - Mission the timer belongs to
- * @param {number} timeLeft - Seconds remaining
- * @param {boolean} isActive - Whether timer is running
+ * @param {number} seconds - Time left (counting) or time elapsed (overtime)
+ * @param {boolean} isActive - Whether the clock is running
+ * @param {string} phase - One of TIMER_PHASES
  */
-export const saveTimer = (missionId, timeLeft, isActive) => {
+export const saveTimer = (missionId, seconds, isActive, phase = 'counting') => {
   try {
     const toSave = {
       missionId,
-      timeLeft,
+      timeLeft: seconds,
       isActive,
+      phase,
       savedAt: Date.now()
     };
     localStorage.setItem(STORAGE_KEYS.TIMER_STATE, JSON.stringify(toSave));
@@ -98,11 +111,12 @@ export const saveTimer = (missionId, timeLeft, isActive) => {
 
 /**
  * Load timer state for a mission, accounting for time that passed while the
- * page was closed.
+ * page was closed: a running countdown loses that time (and lands on timesUp
+ * if it ran out), running overtime gains it.
  *
  * @param {string} missionId - Mission whose timer to restore
- * @returns {Object|null} { timeLeft, isActive }, or null if no timer is stored
- *   for this mission (caller should fall back to the mission's own time box)
+ * @returns {Object|null} { timeLeft, isActive, phase }, or null when there's
+ *   nothing to restore (caller should fall back to the mission's own time box)
  */
 export const loadTimer = (missionId) => {
   try {
@@ -113,15 +127,26 @@ export const loadTimer = (missionId) => {
     if (parsed.missionId !== missionId) return null;
 
     const { timeLeft, isActive, savedAt } = parsed;
+    // Timers saved before phases existed are plain countdowns.
+    const phase = TIMER_PHASES.includes(parsed.phase) ? parsed.phase : 'counting';
+    if (phase === 'done') return null;
 
-    // If timer was running, subtract elapsed time
-    if (isActive && savedAt) {
-      const elapsedSeconds = Math.floor((Date.now() - savedAt) / 1000);
-      const remaining = Math.max(0, timeLeft - elapsedSeconds);
-      return { timeLeft: remaining, isActive: remaining > 0 };
+    const elapsedSeconds = isActive && savedAt ? Math.floor((Date.now() - savedAt) / 1000) : 0;
+
+    if (phase === 'overtime') {
+      return { timeLeft: timeLeft + elapsedSeconds, isActive: Boolean(isActive), phase };
+    }
+    if (phase === 'timesUp') {
+      return { timeLeft: 0, isActive: false, phase };
     }
 
-    return { timeLeft, isActive: false };
+    const remaining = Math.max(0, timeLeft - elapsedSeconds);
+    if (remaining === 0) {
+      // Ran out while the page was closed. An old-format paused timer at zero
+      // is ambiguous, so treat it as nothing to restore.
+      return isActive ? { timeLeft: 0, isActive: false, phase: 'timesUp' } : null;
+    }
+    return { timeLeft: remaining, isActive: Boolean(isActive), phase };
   } catch (error) {
     console.error('Failed to load timer state:', error);
     return null;

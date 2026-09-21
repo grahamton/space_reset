@@ -1,6 +1,6 @@
 import React from 'react';
 import { Flame, Clock, Target, Star, TrendingUp } from 'lucide-react';
-import { getStatsSummary } from '../modules/historyModule';
+import { getStatsSummary, isStreakIncludingSkips } from '../modules/historyModule';
 
 const StatsDashboard = () => {
   const stats = getStatsSummary();
@@ -36,7 +36,9 @@ const StatsDashboard = () => {
             ? `Your best: ${days(stats.maxStreak)}`
             : stats.maxStreak > 0
               ? `Your best: ${days(stats.maxStreak)}. Start fresh any day.`
-              : 'Clear every mission in a session to start one.'}
+              : isStreakIncludingSkips()
+                ? 'Finish at least one mission in a session to start one.'
+                : 'Clear every mission in a session to start one.'}
         </p>
       </div>
 

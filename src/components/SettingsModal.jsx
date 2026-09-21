@@ -1,13 +1,17 @@
 import React, { useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { X, Flame } from 'lucide-react';
 import RoomTypeSelector from './RoomTypeSelector';
 import DifficultySelector from './DifficultySelector';
+import MissionCountSelector from './MissionCountSelector';
+import TimerAlertSettings from './TimerAlertSettings';
 
 /**
  * Session preferences that persist between runs.
  *
  * Persona lives on the idle screen instead — it's the per-session "what voice
  * do I need today" choice, and it belongs next to the camera button.
+ *
+ * Sectioned: Room, Energy (difficulty), Missions (count), Streak, Timer.
  */
 const SettingsModal = ({
   isOpen,
@@ -15,7 +19,11 @@ const SettingsModal = ({
   roomType,
   onRoomTypeChange,
   difficulty,
-  onDifficultyChange
+  onDifficultyChange,
+  missionCount,
+  onMissionCountChange,
+  streakIncludesSkips,
+  onStreakIncludesSkipsChange
 }) => {
   const closeButtonRef = useRef(null);
 
@@ -56,11 +64,54 @@ const SettingsModal = ({
         </div>
 
         <div className="overflow-y-auto px-6 pb-6 space-y-8">
+          {/* Room */}
           <RoomTypeSelector selectedRoomType={roomType} onSelectRoom={onRoomTypeChange} />
+
+          {/* Energy (difficulty) */}
           <DifficultySelector
             selectedDifficulty={difficulty}
             onSelectDifficulty={onDifficultyChange}
           />
+
+          {/* Missions (count) */}
+          <MissionCountSelector
+            selectedMissionCount={missionCount}
+            onSelectMissionCount={onMissionCountChange}
+          />
+
+          {/* Streak */}
+          <div className="w-full space-y-3">
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Streak</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => onStreakIncludesSkipsChange(!streakIncludesSkips)}
+              aria-pressed={streakIncludesSkips}
+              className={`w-full p-4 rounded-2xl border-2 transition-all text-left flex items-start gap-3 ${
+                streakIncludesSkips
+                  ? 'border-indigo-600 bg-indigo-50 shadow-md'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}
+            >
+              <Flame
+                className={`w-6 h-6 mt-0.5 shrink-0 ${
+                  streakIncludesSkips ? 'text-orange-500' : 'text-gray-400'
+                }`}
+                aria-hidden="true"
+              />
+              <div>
+                <p className="font-bold text-gray-900">Skipped missions still count</p>
+                <p className="text-sm text-gray-600">
+                  {streakIncludesSkips
+                    ? 'On: finishing at least one mission in a session keeps your streak alive.'
+                    : 'Off: every mission in a session has to be done to keep your streak alive.'}
+                </p>
+              </div>
+            </button>
+          </div>
+
+          <TimerAlertSettings />
         </div>
       </div>
     </div>
