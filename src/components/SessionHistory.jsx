@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronLeft, Trash2, Calendar, Clock, Target } from 'lucide-react';
-import { getHistoryFiltered, loadHistory } from '../modules/historyModule';
+import { ChevronLeft, Calendar, Clock, Target } from 'lucide-react';
+import { getHistoryFiltered } from '../modules/historyModule';
 
 const SessionHistory = ({ onClose }) => {
   const [filter, setFilter] = useState('all');

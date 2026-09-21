@@ -76,10 +76,6 @@ describe('historyModule', () => {
     });
 
     it('should break streak if day is missed', () => {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-
       const twodays = new Date();
       twodays.setDate(twodays.getDate() - 2);
       const twodaysStr = twodays.toISOString().split('T')[0];
@@ -96,6 +92,39 @@ describe('historyModule', () => {
       // Streak should be 0 because yesterday is missing
       const streak = calculateStreak();
       expect(streak).toBe(0);
+    });
+
+    it('should count consecutive days rather than stopping at one', () => {
+      // Regression: the loop both walked the reference date back and compared
+      // against an incrementing counter, so it always broke on the second day.
+      for (let daysAgo = 0; daysAgo < 5; daysAgo++) {
+        const date = new Date();
+        date.setDate(date.getDate() - daysAgo);
+        saveSessionToHistory({
+          date: date.toISOString().split('T')[0],
+          personaId: 'gentle',
+          missionCount: 5,
+          completedCount: 5,
+          totalTime: 600
+        });
+      }
+
+      expect(calculateStreak()).toBe(5);
+    });
+
+    it('should keep a streak alive on a day you have not cleaned yet', () => {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      saveSessionToHistory({
+        date: yesterday.toISOString().split('T')[0],
+        personaId: 'gentle',
+        missionCount: 5,
+        completedCount: 5,
+        totalTime: 600
+      });
+
+      expect(calculateStreak()).toBe(1);
     });
 
     it('should ignore incomplete sessions in streak', () => {

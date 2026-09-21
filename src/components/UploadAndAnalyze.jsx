@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Camera, ImageIcon, AlertCircle, ChevronDown, RotateCcw } from 'lucide-react';
-import { PERSONAS } from '../config/personas';
+import { PERSONAS } from '../../shared/personas.js';
 import { getSessionSummary } from '../modules/storageModule';
 
 const MAX_FILE_SIZE_MB = 5;
@@ -10,6 +10,7 @@ const MAX_DIMENSION = 4000;
 const UploadAndAnalyze = ({
   onUpload,
   onResume,
+  onUseFallback,
   error,
   selectedPersonaId,
   onPersonaChange,
@@ -164,9 +165,19 @@ const UploadAndAnalyze = ({
 
       {/* Error Display */}
       {error && (
-        <div className="flex items-center gap-2 text-red-600 bg-red-50 px-4 py-3 rounded-xl text-sm max-w-xs border border-red-100 shadow-sm">
-          <AlertCircle className="w-5 h-5 shrink-0" />
-          {error}
+        <div className="max-w-xs w-full space-y-2">
+          <div className="flex items-center gap-2 text-red-600 bg-red-50 px-4 py-3 rounded-xl text-sm border border-red-100 shadow-sm">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            {error}
+          </div>
+          {onUseFallback && (
+            <button
+              onClick={onUseFallback}
+              className="w-full py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold text-sm hover:bg-gray-200 transition-colors"
+            >
+              Use the standard 5 Things instead
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -1,7 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { PERSONAS, DEFAULT_PERSONA } from './config/personas';
-import { saveSession, loadSession, clearSession, hasSession } from './modules/storageModule';
-import { visionModule, DEFAULT_FALLBACK_DATA } from './modules/visionModule';
+import React, { useState } from 'react';
+import { DEFAULT_PERSONA } from '../shared/personas.js';
+import { DEFAULT_DIFFICULTY } from '../shared/roomTypes.js';
+import {
+  saveSession,
+  loadSession,
+  clearSession,
+  hasSession,
+  loadPreference,
+  savePreference
+} from './modules/storageModule';
+import { visionModule, getFallbackMissions } from './modules/visionModule';
+import { saveSessionToHistory, updateStats, loadStats } from './modules/historyModule';
 
 // Component imports
 import Header from './components/Header';
@@ -11,51 +20,69 @@ import AnalyzingState from './components/AnalyzingState';
 import CurrentMission from './components/CurrentMission';
 import CompletionScreen from './components/CompletionScreen';
 import SessionSummaryDrawer from './components/SessionSummaryDrawer';
+import StatsDashboard from './components/StatsDashboard';
+import SessionHistory from './components/SessionHistory';
+
+const emptySession = () => ({
+  status: 'idle',
+  missionQueue: [],
+  currentMissionIndex: 0,
+  completedCount: 0,
+  consecutiveSkips: 0,
+  startedAt: null,
+  error: null
+});
 
 // ==========================================
 // MISSION CONTROL HOOK
 // ==========================================
-const useMissionControl = (apiKey, selectedPersonaId) => {
-  const [sessionState, setSessionState] = useState(() => {
-    // Try to restore session on mount
-    const saved = loadSession();
-    return saved || {
-      status: 'idle',
-      missionQueue: [],
-      currentMissionIndex: 0,
-      completedCount: 0,
-      error: null
+export const useMissionControl = ({ personaId, roomType, difficulty }) => {
+  const [sessionState, setSessionState] = useState(() => loadSession() || emptySession());
+
+  const beginSession = (missions) => {
+    const newState = {
+      ...emptySession(),
+      status: 'active',
+      missionQueue: missions,
+      startedAt: Date.now()
     };
-  });
+    setSessionState(newState);
+    saveSession(newState);
+  };
 
   const startAnalysis = async (file) => {
-    if (!apiKey) {
-      setSessionState((prev) => ({
-        ...prev,
-        error: 'Missing API Key! Tap the gear icon to add it.'
-      }));
-      return;
-    }
-
     setSessionState((prev) => ({ ...prev, status: 'analyzing', error: null }));
     try {
-      const persona = PERSONAS[selectedPersonaId] || PERSONAS[DEFAULT_PERSONA];
-      const data = await visionModule.analyzeImage(file, apiKey, persona);
-      const queue =
-        data.missions && data.missions.length > 0 ? data.missions : DEFAULT_FALLBACK_DATA?.missions || [];
-
-      const newState = {
-        status: 'active',
-        missionQueue: queue,
-        currentMissionIndex: 0,
-        completedCount: 0,
-        error: null
-      };
-      setSessionState(newState);
-      saveSession(newState);
+      const { missions } = await visionModule.analyzeImage(file, {
+        personaId,
+        roomType,
+        difficulty
+      });
+      beginSession(missions);
     } catch (e) {
-      setSessionState((prev) => ({ ...prev, status: 'idle', error: 'Connection blip. Try again?' }));
+      // Surface the real reason and let the user choose the offline missions,
+      // rather than silently swapping them in.
+      setSessionState((prev) => ({ ...prev, status: 'idle', error: e.message }));
     }
+  };
+
+  /** Start with the built-in missions after an analysis failure. */
+  const startFallbackSession = () => {
+    beginSession(getFallbackMissions(difficulty).missions);
+  };
+
+  /** Record the finished session once, at the active -> complete transition. */
+  const recordCompletion = (state) => {
+    const totalTime = state.startedAt ? Math.round((Date.now() - state.startedAt) / 1000) : 0;
+    saveSessionToHistory({
+      personaId,
+      roomType,
+      difficulty,
+      missionCount: state.missionQueue.length,
+      completedCount: state.completedCount,
+      totalTime
+    });
+    updateStats();
   };
 
   const completeCurrentMission = () => {
@@ -66,9 +93,12 @@ const useMissionControl = (apiKey, selectedPersonaId) => {
         ...prev,
         status: isComplete ? 'complete' : 'active',
         currentMissionIndex: nextIndex,
-        completedCount: prev.completedCount + 1
+        completedCount: prev.completedCount + 1,
+        // Progress means the remaining missions deserve another look.
+        consecutiveSkips: 0
       };
       saveSession(newState);
+      if (isComplete) recordCompletion(newState);
       return newState;
     });
   };
@@ -79,40 +109,46 @@ const useMissionControl = (apiKey, selectedPersonaId) => {
       const newQueue = [...prev.missionQueue];
       newQueue.splice(prev.currentMissionIndex, 1);
       newQueue.push(current);
-      const newState = { ...prev, missionQueue: newQueue };
+
+      // Skipping rotates the queue without advancing the index, so without a
+      // cycle guard the last mission could be deferred forever and 'complete'
+      // was unreachable except by finishing every mission.
+      const remaining = prev.missionQueue.length - prev.completedCount;
+      const consecutiveSkips = prev.consecutiveSkips + 1;
+      const seenThemAll = consecutiveSkips >= remaining;
+
+      const newState = {
+        ...prev,
+        missionQueue: newQueue,
+        consecutiveSkips,
+        status: seenThemAll ? 'complete' : 'active'
+      };
       saveSession(newState);
+      if (seenThemAll) recordCompletion(newState);
       return newState;
     });
   };
 
   const resetSession = () => {
-    const newState = {
-      status: 'idle',
-      missionQueue: [],
-      currentMissionIndex: 0,
-      completedCount: 0,
-      error: null
-    };
-    setSessionState(newState);
+    setSessionState(emptySession());
     clearSession();
   };
 
   const resumeSession = () => {
     const saved = loadSession();
-    if (saved) {
-      setSessionState(saved);
-    }
+    if (saved) setSessionState(saved);
   };
 
   const getCurrentMission = () => {
-    if (sessionState.missionQueue.length === 0) return null;
-    if (sessionState.currentMissionIndex >= sessionState.missionQueue.length) return null;
-    return sessionState.missionQueue[sessionState.currentMissionIndex];
+    const { missionQueue, currentMissionIndex } = sessionState;
+    if (currentMissionIndex >= missionQueue.length) return null;
+    return missionQueue[currentMissionIndex] || null;
   };
 
   return {
     sessionState,
     startAnalysis,
+    startFallbackSession,
     completeCurrentMission,
     skipCurrentMission,
     resetSession,
@@ -125,34 +161,75 @@ const useMissionControl = (apiKey, selectedPersonaId) => {
 // MAIN APP COMPONENT
 // ==========================================
 export default function App() {
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
-  const [selectedPersonaId, setSelectedPersonaId] = useState(
-    () => localStorage.getItem('selected_persona_id') || DEFAULT_PERSONA
+  const [personaId, setPersonaId] = useState(
+    () => loadPreference('SELECTED_PERSONA_ID', DEFAULT_PERSONA) || DEFAULT_PERSONA
   );
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [roomType, setRoomType] = useState(() => loadPreference('ROOM_TYPE', 'other'));
+  const [difficulty, setDifficulty] = useState(
+    () => loadPreference('DIFFICULTY', DEFAULT_DIFFICULTY) || DEFAULT_DIFFICULTY
+  );
+  const [activePanel, setActivePanel] = useState(null); // 'settings' | 'stats' | 'history'
 
-  const saveApiKey = (key) => {
-    localStorage.setItem('gemini_api_key', key);
-    setApiKey(key);
+  const persistPreference = (key, value, setter) => {
+    savePreference(key, value);
+    setter(value);
   };
 
-  const savePersona = (id) => {
-    localStorage.setItem('selected_persona_id', id);
-    setSelectedPersonaId(id);
-  };
-
-  const { sessionState, startAnalysis, completeCurrentMission, skipCurrentMission, resetSession, resumeSession, getCurrentMission } =
-    useMissionControl(apiKey, selectedPersonaId);
+  const {
+    sessionState,
+    startAnalysis,
+    startFallbackSession,
+    completeCurrentMission,
+    skipCurrentMission,
+    resetSession,
+    resumeSession,
+    getCurrentMission
+  } = useMissionControl({ personaId, roomType, difficulty });
 
   const currentMission = getCurrentMission();
   const sessionHasData = hasSession();
+  const { currentStreak } = loadStats();
+
+  const closePanel = () => setActivePanel(null);
+
+  if (activePanel === 'history') {
+    return (
+      <div className="h-[100dvh] bg-white text-gray-900 font-sans overflow-y-auto">
+        <SessionHistory onClose={closePanel} />
+      </div>
+    );
+  }
+
+  if (activePanel === 'stats') {
+    return (
+      <div className="h-[100dvh] bg-white text-gray-900 font-sans overflow-y-auto">
+        <StatsDashboard />
+        <div className="max-w-md mx-auto px-6 pb-8 space-y-3">
+          <button
+            onClick={() => setActivePanel('history')}
+            className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+          >
+            View Session History
+          </button>
+          <button
+            onClick={closePanel}
+            className="w-full py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-colors"
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-[100dvh] bg-white text-gray-900 font-sans flex flex-col overflow-hidden selection:bg-indigo-100">
       <Header
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSettings={() => setActivePanel('settings')}
+        onOpenStats={() => setActivePanel('stats')}
         sessionStatus={sessionState.status}
         onReset={resetSession}
+        streak={currentStreak}
       />
 
       <main className="flex-1 relative w-full max-w-md mx-auto bg-white flex flex-col min-h-0">
@@ -160,9 +237,10 @@ export default function App() {
           <UploadAndAnalyze
             onUpload={startAnalysis}
             onResume={resumeSession}
+            onUseFallback={startFallbackSession}
             error={sessionState.error}
-            selectedPersonaId={selectedPersonaId}
-            onPersonaChange={savePersona}
+            selectedPersonaId={personaId}
+            onPersonaChange={(id) => persistPreference('SELECTED_PERSONA_ID', id, setPersonaId)}
             hasSession={sessionHasData}
           />
         )}
@@ -188,10 +266,12 @@ export default function App() {
       )}
 
       <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        apiKey={apiKey}
-        onSaveKey={saveApiKey}
+        isOpen={activePanel === 'settings'}
+        onClose={closePanel}
+        roomType={roomType}
+        onRoomTypeChange={(id) => persistPreference('ROOM_TYPE', id, setRoomType)}
+        difficulty={difficulty}
+        onDifficultyChange={(id) => persistPreference('DIFFICULTY', id, setDifficulty)}
       />
     </div>
   );

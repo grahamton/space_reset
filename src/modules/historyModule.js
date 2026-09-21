@@ -105,22 +105,30 @@ export const calculateStreak = () => {
   // Get unique dates sorted descending
   const dates = [...new Set(completed.map((s) => s.date))].sort().reverse();
 
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
   let streak = 0;
-  let today = new Date();
-  today = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  // Day offset the next session in the run must land on. Seeded from the most
+  // recent session so a streak survives until a full day is missed: finishing
+  // yesterday but not yet today still counts.
+  let expectedOffset = null;
 
   for (const dateStr of dates) {
     const [year, month, day] = dateStr.split('-').map(Number);
     const sessionDate = new Date(year, month - 1, day);
+    // Rounded, not floored: DST turns some day boundaries into 23 or 25 hours.
+    const diffDays = Math.round((today - sessionDate) / (1000 * 60 * 60 * 24));
 
-    const diffDays = Math.floor((today - sessionDate) / (1000 * 60 * 60 * 24));
-
-    if (diffDays === streak) {
-      streak++;
-      today.setDate(today.getDate() - 1);
-    } else {
-      break;
+    if (expectedOffset === null) {
+      if (diffDays > 1) break; // the run already lapsed
+      expectedOffset = diffDays;
     }
+
+    if (diffDays !== expectedOffset) break;
+
+    streak++;
+    expectedOffset++;
   }
 
   return streak;
@@ -141,24 +149,26 @@ export const updateStreak = () => {
 /**
  * Get user statistics
  */
+const emptyStats = () => ({
+  totalSessions: 0,
+  completedSessions: 0,
+  totalTime: 0,
+  currentStreak: 0,
+  maxStreak: 0,
+  totalMissionsCompleted: 0,
+  averageCompletionRate: 0,
+  lastSessionDate: null
+});
+
 export const loadStats = () => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY_STATS);
-    return (
-      stored || {
-        totalSessions: 0,
-        completedSessions: 0,
-        totalTime: 0,
-        currentStreak: 0,
-        maxStreak: 0,
-        totalMissionsCompleted: 0,
-        averageCompletionRate: 0,
-        lastSessionDate: null
-      }
-    );
+    // Must be parsed: returning the raw string made every caller that assigned
+    // a property to it throw, which kept streaks and stats permanently at zero.
+    return stored ? { ...emptyStats(), ...JSON.parse(stored) } : emptyStats();
   } catch (error) {
     console.error('Failed to load stats:', error);
-    return {};
+    return emptyStats();
   }
 };
 
@@ -177,7 +187,7 @@ export const saveStats = (stats) => {
 /**
  * Update statistics after session completion
  */
-export const updateStats = (completedCount, missionCount, totalTime) => {
+export const updateStats = () => {
   try {
     const stats = loadStats();
     const history = loadHistory();
@@ -191,10 +201,9 @@ export const updateStats = (completedCount, missionCount, totalTime) => {
       (sum, s) => sum + s.completedCount,
       0
     );
-    stats.averageCompletionRate = (
-      (stats.completedSessions / stats.totalSessions) *
-      100
-    ).toFixed(1);
+    stats.averageCompletionRate = stats.totalSessions
+      ? ((stats.completedSessions / stats.totalSessions) * 100).toFixed(1)
+      : 0;
     stats.lastSessionDate = new Date().toISOString();
 
     saveStats(stats);

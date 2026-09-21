@@ -35,7 +35,7 @@ class ErrorFallback extends React.Component {
             An unexpected error occurred. Don't worry—your data is safe. Try reloading the page.
           </p>
 
-          {process.env.NODE_ENV === 'development' && this.state.error && (
+          {import.meta.env.DEV && this.state.error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 max-w-md text-left text-sm font-mono text-red-700 overflow-auto max-h-40">
               <p className="font-bold mb-1">Error Details:</p>
               <p>{this.state.error.toString()}</p>

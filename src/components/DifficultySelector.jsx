@@ -1,5 +1,5 @@
 import React from 'react';
-import { getAllDifficulties } from '../modules/configModule';
+import { getAllDifficulties } from '../../shared/roomTypes.js';
 import { Zap, Target, Flame } from 'lucide-react';
 
 const DifficultySelector = ({ selectedDifficulty, onSelectDifficulty }) => {

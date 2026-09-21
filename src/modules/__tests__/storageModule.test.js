@@ -87,35 +87,36 @@ describe('storageModule', () => {
   });
 
   describe('Timer State', () => {
+    const MISSION = 'm1';
+
+    const seedTimer = (state) =>
+      localStorage.setItem('timer_state', JSON.stringify({ missionId: MISSION, ...state }));
+
     it('should save and load timer state', () => {
-      saveTimer(120, false);
-      const { timeLeft, isActive } = loadTimer();
+      saveTimer(MISSION, 120, false);
+      const { timeLeft, isActive } = loadTimer(MISSION);
 
       expect(timeLeft).toBe(120);
       expect(isActive).toBeFalsy();
     });
 
-    it('should return default values when no timer saved', () => {
-      const { timeLeft, isActive } = loadTimer();
+    it('should return null when no timer saved', () => {
+      expect(loadTimer(MISSION)).toBeNull();
+    });
 
-      expect(timeLeft).toBe(0);
-      expect(isActive).toBeFalsy();
+    it('should not return another mission\'s timer', () => {
+      saveTimer(MISSION, 120, true);
+
+      // Regression: a single shared key meant a paused timer from one mission
+      // was restored onto the next one instead of its own time box.
+      expect(loadTimer('m2')).toBeNull();
     });
 
     it('should calculate time decay for active timer', () => {
       const startTime = 120;
-      const savedAt = Date.now() - 30000; // 30 seconds ago
+      seedTimer({ timeLeft: startTime, isActive: true, savedAt: Date.now() - 30000 });
 
-      localStorage.setItem(
-        'timer_state',
-        JSON.stringify({
-          timeLeft: startTime,
-          isActive: true,
-          savedAt
-        })
-      );
-
-      const { timeLeft, isActive } = loadTimer();
+      const { timeLeft } = loadTimer(MISSION);
 
       // Should have lost ~30 seconds
       expect(timeLeft).toBeLessThanOrEqual(startTime - 29);
@@ -124,35 +125,17 @@ describe('storageModule', () => {
 
     it('should not decay paused timer', () => {
       const startTime = 120;
-      const savedAt = Date.now() - 30000;
+      seedTimer({ timeLeft: startTime, isActive: false, savedAt: Date.now() - 30000 });
 
-      localStorage.setItem(
-        'timer_state',
-        JSON.stringify({
-          timeLeft: startTime,
-          isActive: false,
-          savedAt
-        })
-      );
-
-      const { timeLeft } = loadTimer();
-      expect(timeLeft).toBe(startTime);
+      expect(loadTimer(MISSION).timeLeft).toBe(startTime);
     });
 
     it('should not return negative time', () => {
-      const savedAt = Date.now() - 200000; // 200 seconds ago
+      seedTimer({ timeLeft: 60, isActive: true, savedAt: Date.now() - 200000 });
 
-      localStorage.setItem(
-        'timer_state',
-        JSON.stringify({
-          timeLeft: 60,
-          isActive: true,
-          savedAt
-        })
-      );
-
-      const { timeLeft } = loadTimer();
+      const { timeLeft, isActive } = loadTimer(MISSION);
       expect(timeLeft).toBe(0);
+      expect(isActive).toBeFalsy();
     });
   });
 
@@ -166,10 +149,8 @@ describe('storageModule', () => {
 
     it('should handle corrupted timer data gracefully', () => {
       localStorage.setItem('timer_state', 'invalid json');
-      const { timeLeft, isActive } = loadTimer();
 
-      expect(timeLeft).toBe(0);
-      expect(isActive).toBeFalsy();
+      expect(loadTimer('m1')).toBeNull();
     });
 
     it('should not throw on clear when storage is empty', () => {

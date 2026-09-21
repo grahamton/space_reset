@@ -5,8 +5,9 @@
 const STORAGE_KEYS = {
   SESSION_STATE: 'session_state',
   TIMER_STATE: 'timer_state',
-  GEMINI_API_KEY: 'gemini_api_key',
-  SELECTED_PERSONA_ID: 'selected_persona_id'
+  SELECTED_PERSONA_ID: 'selected_persona_id',
+  ROOM_TYPE: 'room_type',
+  DIFFICULTY: 'difficulty'
 };
 
 const SESSION_EXPIRY_HOURS = 24;
@@ -51,7 +52,11 @@ export const loadSession = () => {
       missionQueue: parsed.missionQueue || [],
       currentMissionIndex: parsed.currentMissionIndex || 0,
       completedCount: parsed.completedCount || 0,
-      error: parsed.error || null
+      startedAt: parsed.startedAt || savedAt,
+      error: parsed.error || null,
+      // Carried through so a round trip through the app doesn't hide the
+      // session's own age from the expiry check above.
+      savedAt
     };
   } catch (error) {
     console.error('Failed to load session:', error);
@@ -61,13 +66,19 @@ export const loadSession = () => {
 };
 
 /**
- * Save timer state (remaining seconds, active flag, last saved timestamp)
+ * Save timer state for a specific mission.
+ *
+ * Scoped by mission id: a single shared key meant a paused timer from one
+ * mission was restored onto the next one instead of its own time box.
+ *
+ * @param {string} missionId - Mission the timer belongs to
  * @param {number} timeLeft - Seconds remaining
  * @param {boolean} isActive - Whether timer is running
  */
-export const saveTimer = (timeLeft, isActive) => {
+export const saveTimer = (missionId, timeLeft, isActive) => {
   try {
     const toSave = {
+      missionId,
       timeLeft,
       isActive,
       savedAt: Date.now()
@@ -79,16 +90,21 @@ export const saveTimer = (timeLeft, isActive) => {
 };
 
 /**
- * Load timer state and calculate elapsed time since last save
- * Accounts for time that passed while page was closed
- * @returns {Object} { timeLeft, isActive }
+ * Load timer state for a mission, accounting for time that passed while the
+ * page was closed.
+ *
+ * @param {string} missionId - Mission whose timer to restore
+ * @returns {Object|null} { timeLeft, isActive }, or null if no timer is stored
+ *   for this mission (caller should fall back to the mission's own time box)
  */
-export const loadTimer = () => {
+export const loadTimer = (missionId) => {
   try {
     const stored = localStorage.getItem(STORAGE_KEYS.TIMER_STATE);
-    if (!stored) return { timeLeft: 0, isActive: false };
+    if (!stored) return null;
 
     const parsed = JSON.parse(stored);
+    if (parsed.missionId !== missionId) return null;
+
     const { timeLeft, isActive, savedAt } = parsed;
 
     // If timer was running, subtract elapsed time
@@ -101,7 +117,7 @@ export const loadTimer = () => {
     return { timeLeft, isActive: false };
   } catch (error) {
     console.error('Failed to load timer state:', error);
-    return { timeLeft: 0, isActive: false };
+    return null;
   }
 };
 
@@ -139,4 +155,24 @@ export const getSessionSummary = () => {
     completedCount: session.completedCount,
     remainingCount: session.missionQueue.length - session.completedCount
   };
+};
+
+/**
+ * Read/write the user's persisted preferences.
+ */
+export const loadPreference = (key, fallback = null) => {
+  try {
+    return localStorage.getItem(STORAGE_KEYS[key]) ?? fallback;
+  } catch (error) {
+    console.error(`Failed to load preference ${key}:`, error);
+    return fallback;
+  }
+};
+
+export const savePreference = (key, value) => {
+  try {
+    localStorage.setItem(STORAGE_KEYS[key], value);
+  } catch (error) {
+    console.error(`Failed to save preference ${key}:`, error);
+  }
 };

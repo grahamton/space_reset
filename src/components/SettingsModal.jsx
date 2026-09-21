@@ -1,31 +1,34 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import RoomTypeSelector from './RoomTypeSelector';
+import DifficultySelector from './DifficultySelector';
 
-const SettingsModal = ({ isOpen, onClose, apiKey, onSaveKey }) => {
-  const [key, setKey] = useState(apiKey);
-  const inputRef = useRef(null);
-  const saveButtonRef = useRef(null);
+/**
+ * Session preferences that persist between runs.
+ *
+ * Persona lives on the idle screen instead — it's the per-session "what voice
+ * do I need today" choice, and it belongs next to the camera button.
+ */
+const SettingsModal = ({
+  isOpen,
+  onClose,
+  roomType,
+  onRoomTypeChange,
+  difficulty,
+  onDifficultyChange
+}) => {
+  const closeButtonRef = useRef(null);
 
   useEffect(() => {
-    setKey(apiKey);
-  }, [apiKey]);
+    if (!isOpen) return undefined;
 
-  // Focus management and Escape key handler
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
+    closeButtonRef.current?.focus();
 
     const handleEscape = (e) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
+      if (e.key === 'Escape') onClose();
     };
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
-    }
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -37,12 +40,13 @@ const SettingsModal = ({ isOpen, onClose, apiKey, onSaveKey }) => {
       aria-modal="true"
       aria-labelledby="settings-title"
     >
-      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in zoom-in duration-200">
-        <div className="flex justify-between items-center mb-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl flex flex-col max-h-[85vh]">
+        <div className="flex justify-between items-center p-6 pb-4 shrink-0">
           <h3 id="settings-title" className="text-xl font-bold text-gray-900">
             Settings
           </h3>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
             aria-label="Close settings dialog"
@@ -51,34 +55,12 @@ const SettingsModal = ({ isOpen, onClose, apiKey, onSaveKey }) => {
           </button>
         </div>
 
-        <div className="space-y-6">
-          <div>
-            <label htmlFor="api-key-input" className="block text-sm font-medium text-gray-700 mb-1">
-              Gemini API Key
-            </label>
-            <input
-              id="api-key-input"
-              ref={inputRef}
-              type="text"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-              placeholder="AIza..."
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
-            />
-            <p className="text-xs text-gray-500 mt-2">Your key is stored locally on your device.</p>
-          </div>
-
-          <button
-            ref={saveButtonRef}
-            onClick={() => {
-              onSaveKey(key.trim());
-              onClose();
-            }}
-            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
-            aria-label="Save API key"
-          >
-            Save Key
-          </button>
+        <div className="overflow-y-auto px-6 pb-6 space-y-8">
+          <RoomTypeSelector selectedRoomType={roomType} onSelectRoom={onRoomTypeChange} />
+          <DifficultySelector
+            selectedDifficulty={difficulty}
+            onSelectDifficulty={onDifficultyChange}
+          />
         </div>
       </div>
     </div>

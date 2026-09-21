@@ -1,5 +1,5 @@
 import React from 'react';
-import { getAllRoomTypes } from '../modules/configModule';
+import { getAllRoomTypes } from '../../shared/roomTypes.js';
 
 const RoomTypeSelector = ({ selectedRoomType, onSelectRoom }) => {
   const roomTypes = getAllRoomTypes();

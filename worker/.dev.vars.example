@@ -1,0 +1,3 @@
+# Copy to worker/.dev.vars for `wrangler dev`. Never commit the real file.
+# Production uses: wrangler secret put ANTHROPIC_API_KEY
+ANTHROPIC_API_KEY=sk-ant-...

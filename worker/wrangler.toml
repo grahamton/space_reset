@@ -1,0 +1,12 @@
+name = "space-reset-worker"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Set to the deployed Pages origin before going live. "*" is dev-only.
+[vars]
+ALLOWED_ORIGIN = "*"
+
+# ANTHROPIC_API_KEY is a secret, never a var:
+#   local dev  -> worker/.dev.vars   (gitignored)
+#   production -> wrangler secret put ANTHROPIC_API_KEY
