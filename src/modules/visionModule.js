@@ -1,37 +1,29 @@
 /**
- * visionModule - Handles image analysis via Google Gemini API
+ * visionModule - Sends a room photo to the mission worker.
+ *
+ * The worker holds the Anthropic key and owns the prompt, so this is just
+ * transport. See worker/src/index.js.
  */
 
-import { PERSONAS, DEFAULT_PERSONA } from '../config/personas';
+import { applyDifficultyToMissions, DEFAULT_DIFFICULTY } from '../../shared/roomTypes.js';
 
-const fileToGenerativePart = async (file) => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result.split(',')[1];
-      resolve({
-        inlineData: {
-          data: base64String,
-          mimeType: file.type
-        }
-      });
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-};
+// Dev goes through the Vite proxy (see vite.config.js); production builds set
+// VITE_WORKER_URL to the deployed worker.
+const MISSIONS_ENDPOINT = import.meta.env.VITE_WORKER_URL
+  ? `${import.meta.env.VITE_WORKER_URL.replace(/\/$/, '')}/api/missions`
+  : '/api/missions';
 
-// Fallback "5 Things" missions when API fails
+/** Offline missions, used only when the user explicitly opts in after a failure. */
 export const DEFAULT_FALLBACK_DATA = {
   missions: [
     {
       id: 'm1',
       title: 'The Trash Harvest',
       description:
-        'Grab a trash bag. Scan the room. Ignore laundry, ignore books. Just find the trash. Wrappers, receipts, empty bottles—if it\'s trash, it goes in the bag.',
+        "Grab a trash bag. Scan the room. Ignore laundry, ignore books. Just find the trash. Wrappers, receipts, empty bottles—if it's trash, it goes in the bag.",
       time: 120,
       type: 'trash',
-      strategy: 'Tunnel vision: If it\'s not trash, it doesn\'t exist right now.'
+      strategy: "Tunnel vision: If it's not trash, it doesn't exist right now."
     },
     {
       id: 'm2',
@@ -47,7 +39,7 @@ export const DEFAULT_FALLBACK_DATA = {
       description: 'Gather all cups, plates, and bottles. Relocate them to the kitchen sink.',
       time: 60,
       type: 'dishes',
-      strategy: 'Don\'t wash them yet. Just get them out of this room.'
+      strategy: "Don't wash them yet. Just get them out of this room."
     },
     {
       id: 'm4',
@@ -60,69 +52,50 @@ export const DEFAULT_FALLBACK_DATA = {
   ]
 };
 
+/**
+ * Fallback missions have hardcoded, difficulty-blind times, so they get the
+ * multiplier. Live missions are paced by the prompt instead.
+ */
+export const getFallbackMissions = (difficulty = DEFAULT_DIFFICULTY) => ({
+  missions: applyDifficultyToMissions(DEFAULT_FALLBACK_DATA.missions, difficulty)
+});
+
+const fileToBase64 = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = () => reject(new Error('Could not read that image file.'));
+    reader.readAsDataURL(file);
+  });
+
 export const visionModule = {
-  analyzeImage: async (file, apiKey, persona) => {
-    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+  /**
+   * @throws {Error} with a message suitable for display. Callers decide whether
+   *   to offer the offline fallback — this never substitutes it silently.
+   */
+  analyzeImage: async (file, { personaId, roomType, difficulty = DEFAULT_DIFFICULTY } = {}) => {
+    const image = await fileToBase64(file);
 
+    let response;
     try {
-      const imagePart = await fileToGenerativePart(file);
-
-      // Construct prompt using the selected persona's instructions
-      const systemInstruction = persona?.systemInstruction || PERSONAS[DEFAULT_PERSONA].systemInstruction;
-
-      const prompt = `
-        ${systemInstruction}
-        
-        Analyze this image. Create 4-6 cleaning "Missions" using the "5 Things" method.
-        
-        Rules:
-        1. Batch tasks (e.g., "All Trash", "All Laundry").
-        2. Keep descriptions actionable and matching your persona's tone.
-        3. Assign a "type" (trash, laundry, dishes, clear, organize).
-        4. Assign a "strategy" tip matching your persona.
-        
-        Return raw JSON:
-        {
-          "missions": [
-            {
-              "id": "unique_id",
-              "title": "Title",
-              "description": "Instructions",
-              "time": 120,
-              "type": "trash",
-              "strategy": "Tip"
-            }
-          ]
-        }
-      `;
-
-      const response = await fetch(API_URL, {
+      response = await fetch(MISSIONS_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }, imagePart] }],
-          generationConfig: { responseMimeType: 'application/json' }
-        })
+        body: JSON.stringify({ image, mimeType: file.type, personaId, roomType, difficulty })
       });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error?.message || 'API Error');
-      }
-
-      const data = await response.json();
-      const text = data.candidates[0].content.parts[0].text;
-      console.log('Gemini Raw Response:', text);
-
-      // Robust JSON extraction
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('No JSON found in response');
-
-      return JSON.parse(jsonMatch[0]);
-    } catch (error) {
-      console.error('Vision Analysis Failed:', error);
-      alert(`Analysis failed: ${error.message}. Using offline mode.`);
-      return DEFAULT_FALLBACK_DATA;
+    } catch {
+      throw new Error("Couldn't reach the server. Check your connection.");
     }
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(payload.error || 'Analysis failed. Try again?');
+    }
+    if (!payload.missions?.length) {
+      throw new Error('No missions came back. Try another photo?');
+    }
+
+    return payload;
   }
 };

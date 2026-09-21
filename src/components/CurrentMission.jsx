@@ -7,18 +7,18 @@ const CurrentMission = ({ mission, onComplete, onSkip, totalMissions, currentInd
   const [isActive, setIsActive] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
 
-  // Initialize timer from localStorage when mission changes
+  // Restore this mission's own timer, or start a fresh time box.
   useEffect(() => {
-    const { timeLeft: savedTime, isActive: savedActive } = loadTimer();
-    if (savedTime > 0) {
-      setTimeLeft(savedTime);
-      setIsActive(savedActive);
+    const saved = loadTimer(mission.id);
+    if (saved && saved.timeLeft > 0) {
+      setTimeLeft(saved.timeLeft);
+      setIsActive(saved.isActive);
     } else {
       setTimeLeft(mission.time || 180);
       setIsActive(false);
     }
     setIsFinishing(false);
-  }, [mission.id]);
+  }, [mission.id, mission.time]);
 
   // Timer countdown with proper cleanup
   useEffect(() => {
@@ -29,43 +29,43 @@ const CurrentMission = ({ mission, onComplete, onSkip, totalMissions, currentInd
         setTimeLeft((prevTime) => {
           const newTime = prevTime - 1;
           // Save timer state on every tick
-          saveTimer(newTime, newTime > 0);
+          saveTimer(mission.id, newTime, newTime > 0);
           return newTime;
         });
       }, 1000);
     } else if (timeLeft === 0) {
       setIsActive(false);
-      saveTimer(0, false);
+      saveTimer(mission.id, 0, false);
     }
 
     // Proper cleanup: always clear interval on unmount or when deps change
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive, timeLeft]);
+  }, [isActive, timeLeft, mission.id]);
 
   const handleComplete = () => {
     setIsFinishing(true);
-    saveTimer(0, false);
+    saveTimer(mission.id, 0, false);
     setTimeout(onComplete, 300);
   };
 
   const handleSkip = () => {
     setIsFinishing(true);
-    saveTimer(0, false);
+    saveTimer(mission.id, 0, false);
     setTimeout(onSkip, 300);
   };
 
   const toggleTimer = () => {
     const newActive = !isActive;
     setIsActive(newActive);
-    saveTimer(timeLeft, newActive);
+    saveTimer(mission.id, timeLeft, newActive);
   };
 
   const addOneMinute = () => {
     const newTime = timeLeft + 60;
     setTimeLeft(newTime);
-    saveTimer(newTime, isActive);
+    saveTimer(mission.id, newTime, isActive);
   };
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;

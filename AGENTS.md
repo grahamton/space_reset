@@ -1,157 +1,113 @@
-# AGENTS.md - Coding Guidelines for Space Reset Coach
+# AGENTS.md — Coding guidelines for Space Reset
 
-This file documents the codebase structure, build/test commands, and code style guidelines for agentic coding systems operating on this repository.
+Conventions for agentic coding systems working in this repository.
 
-## Project Overview
+## Project overview
 
-**Space Reset Coach** is an ADHD-friendly mobile-first web app that turns room photos into small, guided cleaning missions using AI vision analysis. Built with React, Vite, and Tailwind CSS.
+**Space Reset** is an ADHD-friendly, mobile-first web app that turns a room photo into small, timed cleaning missions. React + Vite + Tailwind on the front, a Cloudflare Worker calling the Claude API on the back.
 
-## Build & Development Commands
+The worker exists so the browser never holds an API key. Any change that moves the Anthropic call back into client code is wrong.
 
-### Local Development
+## Commands
+
 ```bash
-npm run dev          # Start Vite dev server (http://localhost:5173)
+npm run dev          # Vite dev server (http://localhost:5173)
 npm run build        # Production build to dist/
-npm run preview      # Preview production build locally
-npm run lint         # Run ESLint (checks src/)
-npm run format       # Format code with Prettier (src/ and public/)
+npm run lint         # ESLint over src/, shared/, worker/
+npm run format       # Prettier
+npm test             # Vitest, single run
+npm run test:coverage
+
+cd worker && npm run dev      # wrangler dev on :8787
+cd worker && npm run deploy
 ```
 
-### Running & Testing
-- There are **no unit tests** currently. No jest/vitest setup.
-- Manual testing is the current approach.
-- Linting with `npm run lint` is the primary code quality check.
+The app needs the worker running to analyze a photo. Vite proxies `/api` to `:8787`.
 
-## File Structure
+## Layout
 
 ```
+index.html                SPA shell (inline SVG favicon, no icon files)
 src/
-  ├── App.jsx              # Main React component (666 lines)
-  ├── main.jsx             # React DOM entry point
-  ├── index.css            # Tailwind imports & global styles
-  └── config/
-      └── personas.js      # Persona definitions & system instructions
-
-public/               # Static assets (HTML, CSS, images)
-index.html           # SPA shell
-vite.config.js       # Vite configuration (React plugin enabled)
-.prettierrc           # Prettier config
-eslint.config.js     # ESLint config (flat config format)
+  App.jsx                 useMissionControl hook + root component
+  ErrorFallback.jsx       Error boundary (class component)
+  main.jsx                Entry point
+  components/             One per screen or panel
+  modules/
+    visionModule.js       Transport to the worker. No prompt logic.
+    storageModule.js      localStorage: session, timer, preferences
+    historyModule.js      History, streaks, stats, achievements
+shared/                   Imported by BOTH src/ and worker/
+  personas.js             Persona definitions (become system prompts)
+  roomTypes.js            Room types, difficulty levels, pure helpers
+  prompt.js               Mission prompt assembly
+worker/src/index.js       POST /api/missions
 ```
 
-## Code Style Guidelines
+**`shared/` must stay browser- and worker-safe**: pure data and pure functions only. No DOM, no `localStorage`, no Node built-ins. Both bundlers pull from it.
 
-### Imports & Module Organization
-- **ES Modules** (type: "module" in package.json)
-- React imports at top: `import React, { useState, useEffect, ... } from 'react'`
-- Component/utility imports organized logically
-- Icon imports from `lucide-react` (used throughout for UI icons)
-- Config imports: `import { PERSONAS, DEFAULT_PERSONA } from './config/personas'`
+## Where things belong
 
-### Formatting Standards
-- **Single quotes** for strings (Prettier configured)
-- **Print width:** 100 characters (Prettier)
-- **Semicolons:** Required (Prettier)
-- **Indentation:** 2 spaces (Prettier default)
-- Run `npm run format` to auto-fix formatting
+- **Prompt wording** → `shared/prompt.js`. Not in the worker, not in the client.
+- **Persona voice** → `shared/personas.js`. The `systemInstruction` is passed as Claude's `system` parameter.
+- **Response shape** → the zod schema in `worker/src/index.js`. Structured outputs enforce it; don't add defensive JSON parsing downstream.
+- **Anything touching `localStorage`** → `storageModule.js` or `historyModule.js`. Components shouldn't call `localStorage` directly.
 
-### Naming Conventions
-- **Components:** PascalCase (e.g., `Header`, `SettingsModal`, `CurrentMission`)
-- **Variables/functions:** camelCase (e.g., `startAnalysis`, `sessionState`, `apiKey`)
-- **Constants:** UPPER_SNAKE_CASE (e.g., `DEFAULT_PERSONA`, `API_URL`)
-- **CSS classes:** kebab-case via Tailwind (no custom CSS needed typically)
+## Code style
 
-### React & State Management
-- Functional components with hooks (React 18+)
-- Use `useState` for local state, `useEffect` for side effects
-- Custom hooks prefixed with `use` (e.g., `useMissionControl`)
-- Props passed explicitly; no prop drilling workarounds unless critical
-- JSX spread operator used sparingly, only for necessary props
+- ES modules, plain JavaScript. No TypeScript anywhere, including the worker.
+- Prettier: single quotes, 100 columns, semicolons, 2-space indent.
+- Components PascalCase, functions camelCase, constants UPPER_SNAKE_CASE.
+- Functional components and hooks; `ErrorFallback` is the one class component (error boundaries require it).
+- Tailwind only. No CSS-in-JS, no new stylesheets. `src/index.css` holds the directives and two global rules.
+- Icons come from `lucide-react`.
+- Use `import.meta.env`, never `process.env` — this is browser code.
 
-### Error Handling
-- Try-catch blocks around API calls (e.g., `visionModule.analyzeImage`)
-- User-facing errors logged to console with `console.error` and shown via `alert` or error state
-- Graceful fallbacks (e.g., `DEFAULT_FALLBACK_DATA` when API fails)
-- Example pattern:
-  ```javascript
-  try {
-    const result = await visionModule.analyzeImage(file, apiKey, persona);
-  } catch (error) {
-    console.error("Vision Analysis Failed:", error);
-    setError(error.message);
-  }
-  ```
+## The Claude call
 
-### Component Structure (Key Pattern in App.jsx)
-1. **Utilities section** - Helper functions (e.g., `fileToGenerativePart`)
-2. **Constants section** - Default data (e.g., `DEFAULT_FALLBACK_DATA`)
-3. **Module section** - Logic encapsulation (e.g., `visionModule`, `useMissionControl`)
-4. **UI Components** - React components (e.g., `Header`, `CurrentMission`)
-5. **Main App** - Default export with orchestration
+Lives only in `worker/src/index.js`.
 
-### localStorage Usage
-- Keys: `'gemini_api_key'`, `'selected_persona_id'`
-- Retrieve on component mount via `useState` initializer
-- Persist with `localStorage.setItem()` in save handlers
-- No localStorage cleanup hooks needed (user manually clears via UI button)
+- Model and effort are constants at the top of the file. Default `claude-opus-5` at `medium` effort.
+- Persona → `system`. Photo → a base64 `image` content block. Instructions → a `text` block after it.
+- Structured output via `zodOutputFormat(MissionsSchema)` on `client.messages.parse()`; read `response.parsed_output`.
+- Check `stop_reason === 'refusal'` and a null `parsed_output` before using the result.
+- Mission `id`s are assigned by the worker after parsing, not requested from the model.
+- Errors map through `Anthropic.APIError` subclasses to distinct client messages. Never forward a raw SDK error to the client.
 
-### Styling Conventions
-- **Tailwind CSS** (v3.4) for all styling—no CSS-in-JS or custom CSS files
-- Responsive design: mobile-first, use `sm:`, `md:`, etc. when needed
-- Common patterns:
-  - Spacing: `px-4 py-3`, `gap-2`, `space-y-4`
-  - Colors: `bg-indigo-600`, `text-gray-900`, `border-gray-100`
-  - Interactive states: `hover:`, `active:`, `focus:`
-  - Animations: `animate-spin`, `animate-pulse`, `transition-all`
-- Animation durations: `duration-300`, `duration-500`
+When touching the API surface, verify against the installed SDK rather than memory — this code was already migrated once from a version whose helper paths differed.
 
-### API Integration
-- **Gemini API** (generativelanguage.googleapis.com) for image analysis
-- Model version: `gemini-2.5-flash-preview-09-2025`
-- Request format: multipart (image + text prompt)
-- Response format: JSON (responseMimeType: "application/json")
-- User provides API key via settings modal; stored in localStorage
+## Session state machine
 
-## ESLint Configuration
+`useMissionControl` in `src/App.jsx` owns it. States: `idle → analyzing → active → complete`.
 
-**File:** `eslint.config.js` (Flat Config format)
-- **Target:** ES2021, module source type
-- **Browser globals:** Enabled
-- **Rules:**
-  - `no-unused-vars`: Warn (ignores args starting with `_`)
-  - `no-console`: Off (logging is allowed)
-  - Report unused disable directives
-- **Scope:** `src/**/*.js` and `src/**/*.jsx`
+Invariants worth preserving:
 
-## Prettier Configuration
+- `currentMissionIndex === completedCount` always. Completing advances both; skipping advances neither. `SessionSummaryDrawer` relies on this to mark done/current.
+- Skipping rotates the mission to the back of the queue and increments `consecutiveSkips`. When that reaches the number of remaining missions, the session completes — otherwise the last mission could be deferred forever.
+- Any progress resets `consecutiveSkips`.
+- `recordCompletion` fires exactly once, at the transition into `complete`.
 
-**File:** `.prettierrc`
-- Single quotes: `true`
-- Print width: `100`
-- Semicolons: `true`
+## Testing
 
-## Key Development Notes
+Vitest + jsdom + Testing Library. `vitest.setup.js` imports `@testing-library/jest-dom` and mocks `localStorage` and `matchMedia`.
 
-1. **No test framework** – lint with `npm run lint` for quality checks
-2. **Image upload handling** – FileReader API converts to base64 for API submission
-3. **Mission queue** – Managed via `useMissionControl` hook; skipped items are re-queued
-4. **Personas** – Swap instructions in `src/config/personas.js` without changing other logic
-5. **Fallback flow** – Missing API key or network error triggers `DEFAULT_FALLBACK_DATA`
-6. **localStorage persistence** – Sessions and settings auto-recover on page reload
+Covered: `useMissionControl` (state machine, skip guard, history recording), the worker contract (routing, validation, prompt assembly, failure mapping), `storageModule`, `historyModule`, `Header`, `SettingsModal`.
 
-## Common Tasks for Agents
+Worker tests mock `@anthropic-ai/sdk` via `vi.hoisted`; the real zod helper runs against the real schema.
 
-- **Add feature:** Maintain component structure (utilities → modules → UI → App)
-- **Fix bug:** Check error logs in console; verify async API calls
-- **Style update:** Use Tailwind only; run `npm run format` after changes
-- **New persona:** Add to `PERSONAS` object in `src/config/personas.js`
-- **Component refactor:** Extract UI to separate const function and wire in App
+Run `npm test` before committing. It should be fully green — if it isn't, that's a regression, not a known failure.
 
-## Quick Checklist
+## Common tasks
 
-- [ ] Run `npm run lint` and fix issues
-- [ ] Run `npm run format` before commit
-- [ ] Test in dev mode: `npm run dev`
-- [ ] Verify localStorage keys match existing ones
-- [ ] Check error handling follows try-catch pattern
-- [ ] Use Tailwind only (no custom CSS)
+- **New persona** → add to `PERSONAS` in `shared/personas.js`. Nothing else.
+- **Change mission wording or rules** → `buildMissionPrompt` in `shared/prompt.js`.
+- **New mission type** → add to `MISSION_TYPES` in `shared/roomTypes.js` (the zod enum reads from it) and give it a colour in `getColor` in `CurrentMission.jsx`.
+- **New room type or difficulty** → `shared/roomTypes.js`. The selectors render from it automatically.
+
+## Checklist
+
+- [ ] `npm run lint` — zero errors
+- [ ] `npm test` — all green
+- [ ] `npm run build` — succeeds
+- [ ] No API key or secret in client code, and none committed
+- [ ] `shared/` still free of DOM and Node APIs
