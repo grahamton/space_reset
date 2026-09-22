@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "copy-check": "node scripts/copy-check.js"
   },
   "dependencies": {
     "lucide-react": "^0.344.0",
@@ -25,6 +26,7 @@
     "@testing-library/user-event": "^14.5.1",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
+    "@typesafe-ai/sdk": "^0.6.0",
     "@vitejs/plugin-react": "^4.2.1",
     "@vitest/coverage-v8": "^1.6.1",
     "@vitest/ui": "^1.0.4",

@@ -3,6 +3,15 @@ import { Play, CheckCircle, Clock, SkipForward, Plus, Layers } from 'lucide-reac
 import { saveTimer, loadTimer } from '../modules/storageModule';
 import { primeAudioContext, fireTimesUpAlerts } from '../modules/timerAlerts';
 
+// Keyed by MISSION_TYPES; the schema guarantees `type` is one of them.
+const TYPE_BADGE_CLASSES = {
+  trash: 'bg-rose-100 text-rose-800 border-rose-200',
+  laundry: 'bg-blue-100 text-blue-800 border-blue-200',
+  dishes: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  clear: 'bg-amber-100 text-amber-800 border-amber-200',
+  organize: 'bg-indigo-100 text-indigo-800 border-indigo-200'
+};
+
 const CurrentMission = ({
   mission,
   onComplete,
@@ -152,15 +161,7 @@ const CurrentMission = ({
 
   const formatTime = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
-  const getColor = (t) => {
-    const type = t?.toLowerCase() || '';
-    if (type.includes('trash')) return 'bg-rose-100 text-rose-800 border-rose-200';
-    if (type.includes('laundry')) return 'bg-blue-100 text-blue-800 border-blue-200';
-    if (type.includes('dish')) return 'bg-cyan-100 text-cyan-800 border-cyan-200';
-    return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-  };
-
-  const themeClass = getColor(mission.type);
+  const themeClass = TYPE_BADGE_CLASSES[mission.type] || TYPE_BADGE_CLASSES.organize;
   const remainingCards = queueLength - currentIndex - 1;
 
   return (

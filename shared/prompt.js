@@ -20,7 +20,7 @@ import {
  * a messy room is trash, dishes, laundry, something with a home, or something
  * without one. Keys must match MISSION_TYPES.
  */
-const MISSION_TYPE_GUIDE = {
+export const MISSION_TYPE_GUIDE = {
   trash: 'rubbish, packaging, empty bottles and cans, food waste',
   dishes: 'plates, mugs, glasses, cutlery, pans; the job is getting them to the sink',
   laundry: 'clothes, towels and bedding; the job is getting them into the basket or hamper',

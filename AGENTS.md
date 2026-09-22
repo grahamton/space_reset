@@ -17,6 +17,7 @@ npm run lint         # ESLint over src/, shared/, worker/
 npm run format       # Prettier
 npm test             # Vitest, single run
 npm run test:coverage
+npm run copy-check   # eval-photos/ x personas through the worker, then TypeSafe rule checks
 
 cd worker && npm run dev      # wrangler dev on :8787
 cd worker && npm run deploy
@@ -41,7 +42,9 @@ shared/                   Imported by BOTH src/ and worker/
   personas.js             Persona definitions (become system prompts)
   roomTypes.js            Room types, difficulty levels, pure helpers
   prompt.js               Mission prompt assembly
+  copyChecks.js           TypeSafe questions that test mission copy against the prompt's rules
 worker/src/index.js       POST /api/missions
+scripts/copy-check.js     Eval runner for copyChecks (Node only; see below)
 ```
 
 **`shared/` must stay browser- and worker-safe**: pure data and pure functions only. No DOM, no `localStorage`, no Node built-ins. Both bundlers pull from it.
@@ -120,3 +123,12 @@ Project subagents live in `.claude/agents/`:
 - `ux-copywriter`: user-facing text in the React app (`src/`, `index.html`). It changes copy only, never behavior.
 
 Their file ownership doesn't overlap, so they can run in parallel. Test photos go in `eval-photos/` at the repo root, which is gitignored. Never commit them.
+
+## Checking mission copy
+
+`npm run copy-check` sends every photo in `eval-photos/` through the worker (in-process, no `wrangler dev`) for each persona, then asks TypeSafe whether each card and note breaks a rule from `prompt.js` or `personas.js`: mentions a person, leftover draft text, shaming, pet names, pep-talk strategies, a note that restates a mission, or a `type` that doesn't match the card. It needs `ANTHROPIC_API_KEY` and `TYPESAFE_API_KEY` in `worker/.dev.vars`.
+
+- Options: `--personas a,b`, `--difficulty`, `--room`, `--count`, `-v` to include review-level findings.
+- Each run saves to `eval-results/` (gitignored). Pass a saved file to re-check it without calling Claude again, e.g. after editing a question in `copyChecks.js`.
+- `npm run copy-check -- scripts/copy-check-canaries.json` checks the checks: hand-written bad cards that must flag, and a clean one that must not. Run it after changing any question, and add a canary when you add a rule.
+- When you change a rule in the prompt or a persona, update the matching question in `copyChecks.js` too. The check has to test the same rule the prompt sets, or it will flag copy that follows it.

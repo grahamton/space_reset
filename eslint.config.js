@@ -55,8 +55,8 @@ export default [
     }
   },
   {
-    // Test files and setup run under Vitest with both Node and DOM globals.
-    files: ['**/*.test.{js,jsx}', 'vitest.setup.js', '*.config.js'],
+    // Tests, setup and Node scripts: Vitest, Node and DOM globals.
+    files: ['**/*.test.{js,jsx}', 'vitest.setup.js', '*.config.js', 'scripts/**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
