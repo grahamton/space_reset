@@ -21,8 +21,9 @@ const CoachNote = ({ note }) => {
       <p className="flex-1 leading-snug">{note}</p>
       <button
         onClick={() => setDismissed(true)}
-        aria-label="Dismiss"
-        className="shrink-0 text-indigo-400 hover:text-indigo-600"
+        aria-label="Dismiss coach note"
+        // 44px tap target around a 16px icon; negative margin keeps the bubble compact.
+        className="shrink-0 w-11 h-11 -my-3 -mr-3 flex items-center justify-center rounded-lg text-indigo-500 hover:text-indigo-700"
       >
         <X className="w-4 h-4" aria-hidden="true" />
       </button>

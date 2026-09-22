@@ -230,7 +230,7 @@ export default function App() {
 
   if (activePanel === 'stats') {
     return (
-      <div className="h-[100dvh] bg-white text-gray-900 font-sans overflow-y-auto">
+      <main className="h-[100dvh] bg-white text-gray-900 font-sans overflow-y-auto">
         <StatsDashboard />
         <div className="max-w-md mx-auto px-6 pb-8 space-y-3">
           <button
@@ -246,9 +246,12 @@ export default function App() {
             Back
           </button>
         </div>
-      </div>
+      </main>
     );
   }
+
+  const showSummaryDrawer =
+    sessionState.missionQueue.length > 0 && sessionState.status !== 'complete';
 
   return (
     <div className="h-[100dvh] bg-white text-gray-900 font-sans flex flex-col overflow-hidden selection:bg-indigo-100">
@@ -260,7 +263,12 @@ export default function App() {
         streak={currentStreak}
       />
 
-      <main className="flex-1 relative w-full max-w-md mx-auto bg-white flex flex-col min-h-0">
+      {/* Scrolls when a short screen can't fit the mission card. The summary
+          drawer's collapsed tab is fixed over the bottom 3.5rem, so reserve that
+          space or it sits on top of the mission's Done button. */}
+      <main
+        className={`flex-1 relative w-full max-w-md mx-auto bg-white flex flex-col min-h-0 overflow-y-auto ${showSummaryDrawer ? 'pb-14' : ''}`}
+      >
         {sessionState.status === 'idle' && (
           <UploadAndAnalyze
             onUpload={startAnalysis}
@@ -293,9 +301,7 @@ export default function App() {
         {sessionState.status === 'complete' && <CompletionScreen onReset={resetSession} />}
       </main>
 
-      {sessionState.missionQueue.length > 0 && sessionState.status !== 'complete' && (
-        <SessionSummaryDrawer sessionState={sessionState} />
-      )}
+      {showSummaryDrawer && <SessionSummaryDrawer sessionState={sessionState} />}
 
       <SettingsModal
         isOpen={activePanel === 'settings'}

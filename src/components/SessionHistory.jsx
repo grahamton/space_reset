@@ -43,12 +43,12 @@ const SessionHistory = ({ onClose }) => {
   };
 
   return (
-    <div className="h-[100dvh] bg-white text-gray-900 font-sans flex flex-col overflow-hidden selection:bg-indigo-100">
+    <main className="h-[100dvh] bg-white text-gray-900 font-sans flex flex-col overflow-hidden selection:bg-indigo-100">
       {/* Header */}
       <header className="px-6 py-4 bg-white border-b border-gray-100 flex items-center gap-4 sticky top-0 z-20">
         <button
           onClick={onClose}
-          className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+          className="p-2.5 -ml-2.5 text-gray-500 hover:text-gray-700 transition-colors"
           aria-label="Back"
         >
           <ChevronLeft className="w-6 h-6" aria-hidden="true" />
@@ -68,7 +68,7 @@ const SessionHistory = ({ onClose }) => {
             key={f.id}
             onClick={() => setFilter(f.id)}
             aria-pressed={filter === f.id}
-            className={`px-4 py-2 rounded-full font-medium whitespace-nowrap transition-all ${
+            className={`px-4 min-h-11 rounded-full font-medium whitespace-nowrap transition-all ${
               filter === f.id
                 ? 'bg-indigo-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -85,7 +85,7 @@ const SessionHistory = ({ onClose }) => {
           <div className="flex items-center justify-center h-96">
             <div className="text-center space-y-3">
               <p className="text-gray-500 text-lg">Nothing here yet</p>
-              <p className="text-gray-400 text-sm">
+              <p className="text-gray-500 text-sm">
                 {filter === 'completed' && 'Sessions where you clear every mission show up here.'}
                 {filter === 'week' && 'No sessions in the last 7 days. Start one whenever.'}
                 {filter === 'month' && 'No sessions in the last 30 days. Start one whenever.'}
@@ -111,7 +111,9 @@ const SessionHistory = ({ onClose }) => {
                     </p>
                     <p className="font-bold text-gray-900 mt-1">{describeSession(session)}</p>
                   </div>
-                  <div className={`px-3 py-1 rounded-full text-sm font-bold ${getCompletionColor(session.completedCount, session.missionCount)}`}>
+                  <div
+                    className={`px-3 py-1 rounded-full text-sm font-bold ${getCompletionColor(session.completedCount, session.missionCount)}`}
+                  >
                     {completionPercent}%
                   </div>
                 </div>
@@ -119,17 +121,17 @@ const SessionHistory = ({ onClose }) => {
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   <div className="flex items-center gap-2 text-sm">
-                    <Target className="w-4 h-4 text-gray-400" aria-hidden="true" />
+                    <Target className="w-4 h-4 text-gray-500" aria-hidden="true" />
                     <span className="text-gray-700">
                       {session.completedCount} of {session.missionCount} done
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <Clock className="w-4 h-4 text-gray-400" aria-hidden="true" />
+                    <Clock className="w-4 h-4 text-gray-500" aria-hidden="true" />
                     <span className="text-gray-700">{formatTime(session.totalTime || 0)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-gray-400" aria-hidden="true" />
+                    <Calendar className="w-4 h-4 text-gray-500" aria-hidden="true" />
                     <span className="text-gray-700">
                       {new Date(session.timestamp).toLocaleTimeString('en-US', {
                         hour: 'numeric',
@@ -155,7 +157,10 @@ const SessionHistory = ({ onClose }) => {
                 {session.rating && (
                   <div className="flex gap-1 mt-3">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <span key={i} className={i < session.rating ? 'text-lg' : 'text-lg opacity-30'}>
+                      <span
+                        key={i}
+                        className={i < session.rating ? 'text-lg' : 'text-lg opacity-30'}
+                      >
                         ⭐
                       </span>
                     ))}
@@ -166,7 +171,7 @@ const SessionHistory = ({ onClose }) => {
           })
         )}
       </div>
-    </div>
+    </main>
   );
 };
 

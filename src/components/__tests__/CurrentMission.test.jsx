@@ -184,3 +184,17 @@ describe('CurrentMission timer', () => {
     expect(screen.getByRole('timer')).not.toHaveTextContent('0:00');
   });
 });
+
+describe('CurrentMission focus', () => {
+  it('moves focus to the next mission title after the mission changes', () => {
+    const { rerender } = renderMission();
+    // Not on first render: that would steal focus the moment a session starts.
+    expect(document.activeElement).not.toBe(screen.getByRole('heading', { level: 2 }));
+
+    rerender(
+      <CurrentMission {...baseProps} mission={{ ...mission, id: 'mission-2', title: 'Mugs out' }} />
+    );
+
+    expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Mugs out' }));
+  });
+});

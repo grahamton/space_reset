@@ -87,7 +87,7 @@ const TimerAlertSettings = () => {
               <p className="text-sm text-gray-600">A short, calm chime. No files, no network.</p>
               <button
                 onClick={handleTestSound}
-                className="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-2 py-1 -ml-2 mt-1 rounded transition-colors"
+                className="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-3 min-h-11 -ml-3 -mb-2 rounded-lg transition-colors"
               >
                 Test sound
               </button>
@@ -98,7 +98,7 @@ const TimerAlertSettings = () => {
             aria-checked={soundOn}
             aria-label="Sound when time's up"
             onClick={toggleSound}
-            className={`shrink-0 w-12 h-7 rounded-full transition-colors relative ${soundOn ? 'bg-indigo-600' : 'bg-gray-200'}`}
+            className={`shrink-0 w-12 h-7 rounded-full transition-colors relative before:absolute before:-inset-2 before:content-[''] ${soundOn ? 'bg-indigo-600' : 'bg-gray-200'}`}
           >
             <span
               className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${soundOn ? 'translate-x-6' : 'translate-x-1'}`}
@@ -126,7 +126,7 @@ const TimerAlertSettings = () => {
             aria-label="Notify me when time's up"
             onClick={toggleNotify}
             disabled={!supported || denied}
-            className={`shrink-0 w-12 h-7 rounded-full transition-colors relative disabled:opacity-40 disabled:cursor-not-allowed ${notifyOn ? 'bg-indigo-600' : 'bg-gray-200'}`}
+            className={`shrink-0 w-12 h-7 rounded-full transition-colors relative before:absolute before:-inset-2 before:content-[''] disabled:opacity-40 disabled:cursor-not-allowed ${notifyOn ? 'bg-indigo-600' : 'bg-gray-200'}`}
           >
             <span
               className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${notifyOn ? 'translate-x-6' : 'translate-x-1'}`}

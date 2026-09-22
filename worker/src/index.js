@@ -20,7 +20,8 @@ import { buildMissionPrompt } from '../../shared/prompt.js';
 
 const MODEL = 'claude-opus-5';
 
-// Mirrors the 5MB client-side file cap, plus base64's ~33% overhead and headroom.
+// The client shrinks photos to Claude's vision limit (a few hundred KB, 3MB at most)
+// before upload, so this is a generous guard including base64's ~33% overhead.
 const MAX_IMAGE_BYTES = 7 * 1024 * 1024;
 
 const ACCEPTED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];

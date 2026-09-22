@@ -30,13 +30,18 @@ const SettingsModal = ({
   useEffect(() => {
     if (!isOpen) return undefined;
 
+    // Return focus to whatever opened the dialog (the settings button) on close.
+    const opener = document.activeElement;
     closeButtonRef.current?.focus();
 
     const handleEscape = (e) => {
       if (e.key === 'Escape') onClose();
     };
     document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      opener?.focus?.();
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -50,13 +55,13 @@ const SettingsModal = ({
     >
       <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl flex flex-col max-h-[85vh]">
         <div className="flex justify-between items-center p-6 pb-4 shrink-0">
-          <h3 id="settings-title" className="text-xl font-bold text-gray-900">
+          <h2 id="settings-title" className="text-xl font-bold text-gray-900">
             Settings
-          </h3>
+          </h2>
           <button
             ref={closeButtonRef}
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-2.5 -m-2.5 rounded-lg text-gray-500 hover:text-gray-700 transition-colors"
             aria-label="Close settings"
           >
             <X className="w-6 h-6" aria-hidden="true" />
@@ -96,7 +101,7 @@ const SettingsModal = ({
             >
               <Flame
                 className={`w-6 h-6 mt-0.5 shrink-0 ${
-                  streakIncludesSkips ? 'text-orange-500' : 'text-gray-400'
+                  streakIncludesSkips ? 'text-orange-500' : 'text-gray-500'
                 }`}
                 aria-hidden="true"
               />
