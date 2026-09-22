@@ -64,6 +64,6 @@ export default [
     }
   },
   {
-    ignores: ['dist/**', 'worker/node_modules/**', 'node_modules/**']
+    ignores: ['dist/**', 'worker/node_modules/**', 'worker/.wrangler/**', 'node_modules/**']
   }
 ];

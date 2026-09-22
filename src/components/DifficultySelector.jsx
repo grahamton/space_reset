@@ -20,8 +20,8 @@ const DifficultySelector = ({ selectedDifficulty, onSelectDifficulty }) => {
   return (
     <div className="w-full space-y-4">
       <div className="text-center">
-        <h3 className="text-lg font-bold text-gray-900 mb-2">How challenging?</h3>
-        <p className="text-sm text-gray-600">Sets mission difficulty and time boxes</p>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">How much energy today?</h3>
+        <p className="text-sm text-gray-600">Changes how big and ambitious each mission is.</p>
       </div>
 
       <div className="space-y-3">
@@ -29,6 +29,7 @@ const DifficultySelector = ({ selectedDifficulty, onSelectDifficulty }) => {
           <button
             key={difficulty.id}
             onClick={() => onSelectDifficulty(difficulty.id)}
+            aria-pressed={selectedDifficulty === difficulty.id}
             className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${
               selectedDifficulty === difficulty.id
                 ? 'border-indigo-600 bg-indigo-50 shadow-md'
@@ -38,6 +39,7 @@ const DifficultySelector = ({ selectedDifficulty, onSelectDifficulty }) => {
             <div className="flex items-start gap-3">
               <div
                 className={`p-3 rounded-full bg-gradient-to-br ${getColor(difficulty.id)} text-white mt-1`}
+                aria-hidden="true"
               >
                 {getIcon(difficulty.id)}
               </div>
@@ -45,9 +47,7 @@ const DifficultySelector = ({ selectedDifficulty, onSelectDifficulty }) => {
                 <p className="font-bold text-gray-900">{difficulty.name}</p>
                 <p className="text-sm text-gray-600">{difficulty.description}</p>
                 <div className="flex gap-2 mt-2 text-xs text-gray-500">
-                  <span>⏱️ {difficulty.timePerMission / 60} min per mission</span>
-                  <span>•</span>
-                  <span>📍 {difficulty.missionCount} missions</span>
+                  <span>up to {difficulty.timePerMission / 60} min each</span>
                 </div>
               </div>
             </div>

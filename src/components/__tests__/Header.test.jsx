@@ -50,7 +50,7 @@ describe('Header Component', () => {
       />
     );
 
-    const quitButton = screen.getByLabelText('Quit current session');
+    const quitButton = screen.getByLabelText('End session');
     expect(quitButton).toBeInTheDocument();
   });
 
@@ -67,7 +67,7 @@ describe('Header Component', () => {
       />
     );
 
-    const quitButton = screen.queryByLabelText('Quit current session');
+    const quitButton = screen.queryByLabelText('End session');
     expect(quitButton).not.toBeInTheDocument();
   });
 
@@ -108,10 +108,12 @@ describe('Header Component', () => {
       />
     );
 
-    const quitButton = screen.getByLabelText('Quit current session');
+    const quitButton = screen.getByLabelText('End session');
     await user.click(quitButton);
 
-    expect(window.confirm).toHaveBeenCalledWith('Quit this session?');
+    expect(window.confirm).toHaveBeenCalledWith(
+      "End this session? It won't be saved to your history."
+    );
     expect(mockHandlers.onReset).toHaveBeenCalled();
   });
 });

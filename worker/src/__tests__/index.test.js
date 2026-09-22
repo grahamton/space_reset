@@ -36,9 +36,9 @@ const missionsRequest = (body = {}) =>
     })
   });
 
-const okResponse = (missions) => ({
+const okResponse = (missions, status = 'ok', note = 'Let’s get this done.') => ({
   stop_reason: 'end_turn',
-  parsed_output: { missions }
+  parsed_output: { status, note, missions }
 });
 
 const sampleMission = {
@@ -108,8 +108,33 @@ describe('mission worker', () => {
       const body = await res.json();
 
       expect(res.status).toBe(200);
+      expect(body.status).toBe('ok');
       expect(body.missions.map((m) => m.id)).toEqual(['m1', 'm2']);
       expect(body.missions[0].title).toBe('Dish Dash');
+    });
+
+    it('returns 200 for a retake with no missions, carrying the note through', async () => {
+      const note = 'Too blurry to see the room. Try again from the doorway.';
+      parse.mockResolvedValue(okResponse([], 'retake', note));
+
+      const res = await worker.fetch(missionsRequest(), ENV);
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.status).toBe('retake');
+      expect(body.note).toBe(note);
+      expect(body.missions).toEqual([]);
+    });
+
+    it('returns 200 for a tidy room with zero or a couple of small missions', async () => {
+      parse.mockResolvedValue(okResponse([], 'tidy', 'Already looking good in here.'));
+
+      const res = await worker.fetch(missionsRequest(), ENV);
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.status).toBe('tidy');
+      expect(body.missions).toEqual([]);
     });
 
     it('sends the persona as a system prompt and the photo as an image block', async () => {
@@ -137,7 +162,57 @@ describe('mission worker', () => {
       const prompt = parse.mock.calls[0][0].messages[0].content[1].text;
       expect(prompt).toMatch(/kitchen/i);
       expect(prompt).toMatch(/ambitious/i); // hard
-      expect(prompt).toMatch(/5 cleaning missions/i); // hard -> 5
+      expect(prompt).toMatch(/Never exceed 900 seconds/); // hard -> 15 min cap
+    });
+
+    it('defaults an omitted mission count to auto, letting the photo decide', async () => {
+      parse.mockResolvedValue(okResponse([sampleMission]));
+
+      await worker.fetch(missionsRequest({ missionCount: undefined }), ENV);
+
+      const prompt = parse.mock.calls[0][0].messages[0].content[1].text;
+      expect(prompt).toMatch(/roughly 3 to 6/i);
+    });
+
+    it('passes a valid fixed mission count through to the prompt', async () => {
+      parse.mockResolvedValue(okResponse([sampleMission]));
+
+      await worker.fetch(missionsRequest({ missionCount: 2 }), ENV);
+
+      const prompt = parse.mock.calls[0][0].messages[0].content[1].text;
+      expect(prompt).toMatch(/up to 2 cleaning missions/i);
+    });
+
+    it('accepts a numeric string mission count', async () => {
+      parse.mockResolvedValue(okResponse([sampleMission]));
+
+      await worker.fetch(missionsRequest({ missionCount: '6' }), ENV);
+
+      const prompt = parse.mock.calls[0][0].messages[0].content[1].text;
+      expect(prompt).toMatch(/up to 6 cleaning missions/i);
+    });
+
+    it('falls back to auto for an out-of-range or malformed mission count', async () => {
+      parse.mockResolvedValue(okResponse([sampleMission]));
+
+      for (const bad of [0, 9, -1, 'banana', 2.5]) {
+        parse.mockClear();
+        await worker.fetch(missionsRequest({ missionCount: bad }), ENV);
+        const prompt = parse.mock.calls[0][0].messages[0].content[1].text;
+        expect(prompt).toMatch(/roughly 3 to 6/i);
+      }
+    });
+
+    it('carries the shared guardrails in every persona system prompt', async () => {
+      parse.mockResolvedValue(okResponse([sampleMission]));
+
+      await worker.fetch(missionsRequest({ personaId: 'roastMaster' }), ENV);
+
+      const { system, max_tokens } = parse.mock.calls[0][0];
+      expect(system).toMatch(/Roast the mess, never the person/);
+      expect(system).toMatch(/Never shame them for the mess existing/);
+      // Bounded so a runaway generation fails fast instead of spinning for minutes.
+      expect(max_tokens).toBeLessThanOrEqual(8000);
     });
 
     it('falls back to the default persona for an unknown id', async () => {
@@ -179,6 +254,16 @@ describe('mission worker', () => {
 
       const res = await worker.fetch(missionsRequest(), ENV);
       expect(res.status).toBe(502);
+    });
+
+    it('502s as the old "garbled" error when status is ok but missions came back empty', async () => {
+      parse.mockResolvedValue(okResponse([], 'ok', 'test'));
+
+      const res = await worker.fetch(missionsRequest(), ENV);
+      const body = await res.json();
+
+      expect(res.status).toBe(502);
+      expect(body.error).toMatch(/garbled/i);
     });
   });
 });

@@ -1,12 +1,12 @@
 # Space Reset
 
-A mobile-first, ADHD-friendly cleaning coach. Photograph a messy room and Claude turns it into four to six small, timed missions — in whichever voice actually works on your brain today.
+A mobile-first, ADHD-friendly cleaning coach. Photograph a messy room and Claude turns it into a handful of small, timed missions — sized to the mess in the photo, or a fixed count you pick — in whichever voice actually works on your brain today.
 
-Don't clean everything. Just do 5 Things.
+Don't clean everything. Just start somewhere.
 
 ## How it works
 
-1. Pick a persona (the "Vibe Check" dropdown) and, optionally, a room type and difficulty in Settings.
+1. Pick a persona (the "Vibe Check" dropdown) and, optionally, a room type, energy level and mission count in Settings.
 2. Snap a photo of the room.
 3. The photo goes to a Cloudflare Worker, which asks Claude for missions and returns them as structured JSON.
 4. Missions arrive as a card stack — one at a time, each with a time box you can start, pause or extend.
@@ -102,6 +102,6 @@ To add a persona, add an entry to `shared/personas.js`. Nothing else needs to ch
 
 ## Notes
 
-- **Difficulty is applied once.** It shapes the prompt (mission count and time-box size). The `applyDifficultyToMissions` multiplier is only used on the offline fallback missions, whose times are hardcoded.
+- **Difficulty and mission count are separate settings.** Difficulty shapes how big and ambitious each mission is (time-box size); mission count controls how many you get, either 'auto' (Claude sizes it to the mess, roughly 3–6) or a fixed number. The `applyDifficultyToMissions` multiplier is only used on the offline fallback missions, whose times are hardcoded.
 - **Skipping defers.** A skipped mission goes to the back of the queue. Skip every remaining mission and the session ends rather than cycling forever.
 - **Failures are visible.** If analysis fails you get the reason and the option to use the built-in missions instead — never a silent substitution.

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { DEFAULT_PERSONA } from '../shared/personas.js';
-import { DEFAULT_DIFFICULTY } from '../shared/roomTypes.js';
+import { DEFAULT_DIFFICULTY, DEFAULT_MISSION_COUNT } from '../shared/roomTypes.js';
 import {
   saveSession,
   loadSession,
@@ -18,6 +18,7 @@ import SettingsModal from './components/SettingsModal';
 import UploadAndAnalyze from './components/UploadAndAnalyze';
 import AnalyzingState from './components/AnalyzingState';
 import CurrentMission from './components/CurrentMission';
+import CoachNote from './components/CoachNote';
 import CompletionScreen from './components/CompletionScreen';
 import SessionSummaryDrawer from './components/SessionSummaryDrawer';
 import StatsDashboard from './components/StatsDashboard';
@@ -30,45 +31,66 @@ const emptySession = () => ({
   completedCount: 0,
   consecutiveSkips: 0,
   startedAt: null,
-  error: null
+  error: null,
+  // A friendly, non-error notice shown on the upload screen (e.g. a 'retake' note).
+  info: null,
+  // The persona's in-character line for this session ('ok'/'tidy'), shown above
+  // the current mission. Persisted with the session so a refresh keeps it.
+  note: null
 });
 
 // ==========================================
 // MISSION CONTROL HOOK
 // ==========================================
-export const useMissionControl = ({ personaId, roomType, difficulty }) => {
+export const useMissionControl = ({ personaId, roomType, difficulty, missionCount }) => {
   const [sessionState, setSessionState] = useState(() => loadSession() || emptySession());
 
-  const beginSession = (missions) => {
+  const beginSession = (missions, note = null) => {
     const newState = {
       ...emptySession(),
       status: 'active',
       missionQueue: missions,
-      startedAt: Date.now()
+      startedAt: Date.now(),
+      note
     };
     setSessionState(newState);
     saveSession(newState);
   };
 
   const startAnalysis = async (file) => {
-    setSessionState((prev) => ({ ...prev, status: 'analyzing', error: null }));
+    setSessionState((prev) => ({ ...prev, status: 'analyzing', error: null, info: null }));
     try {
-      const { missions } = await visionModule.analyzeImage(file, {
+      const {
+        status: apiStatus,
+        note,
+        missions
+      } = await visionModule.analyzeImage(file, {
         personaId,
         roomType,
-        difficulty
+        difficulty,
+        missionCount
       });
-      beginSession(missions);
+
+      // 'retake' never has missions to show. 'tidy' can come back with none too
+      // (nothing to clean) — treat that the same way rather than starting an
+      // empty session: back to the upload screen with the persona's note.
+      const nothingToDo = apiStatus === 'retake' || (apiStatus === 'tidy' && missions.length === 0);
+      if (nothingToDo) {
+        setSessionState((prev) => ({ ...prev, status: 'idle', error: null, info: note }));
+        return;
+      }
+
+      beginSession(missions, note);
     } catch (e) {
       // Surface the real reason and let the user choose the offline missions,
       // rather than silently swapping them in.
-      setSessionState((prev) => ({ ...prev, status: 'idle', error: e.message }));
+      setSessionState((prev) => ({ ...prev, status: 'idle', error: e.message, info: null }));
     }
   };
 
   /** Start with the built-in missions after an analysis failure. */
   const startFallbackSession = () => {
-    beginSession(getFallbackMissions(difficulty).missions);
+    beginSession(getFallbackMissions(difficulty, missionCount).missions);
   };
 
   /** Record the finished session once, at the active -> complete transition. */
@@ -168,6 +190,12 @@ export default function App() {
   const [difficulty, setDifficulty] = useState(
     () => loadPreference('DIFFICULTY', DEFAULT_DIFFICULTY) || DEFAULT_DIFFICULTY
   );
+  const [missionCount, setMissionCount] = useState(
+    () => loadPreference('MISSION_COUNT', DEFAULT_MISSION_COUNT) || DEFAULT_MISSION_COUNT
+  );
+  const [streakIncludesSkips, setStreakIncludesSkips] = useState(
+    () => loadPreference('STREAK_INCLUDES_SKIPS', 'true') !== 'false'
+  );
   const [activePanel, setActivePanel] = useState(null); // 'settings' | 'stats' | 'history'
 
   const persistPreference = (key, value, setter) => {
@@ -184,7 +212,7 @@ export default function App() {
     resetSession,
     resumeSession,
     getCurrentMission
-  } = useMissionControl({ personaId, roomType, difficulty });
+  } = useMissionControl({ personaId, roomType, difficulty, missionCount });
 
   const currentMission = getCurrentMission();
   const sessionHasData = hasSession();
@@ -209,7 +237,7 @@ export default function App() {
             onClick={() => setActivePanel('history')}
             className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors"
           >
-            View Session History
+            See past sessions
           </button>
           <button
             onClick={closePanel}
@@ -239,6 +267,7 @@ export default function App() {
             onResume={resumeSession}
             onUseFallback={startFallbackSession}
             error={sessionState.error}
+            info={sessionState.info}
             selectedPersonaId={personaId}
             onPersonaChange={(id) => persistPreference('SELECTED_PERSONA_ID', id, setPersonaId)}
             hasSession={sessionHasData}
@@ -248,14 +277,17 @@ export default function App() {
         {sessionState.status === 'analyzing' && <AnalyzingState />}
 
         {sessionState.status === 'active' && currentMission && (
-          <CurrentMission
-            mission={currentMission}
-            onComplete={completeCurrentMission}
-            onSkip={skipCurrentMission}
-            totalMissions={sessionState.missionQueue.length}
-            queueLength={sessionState.missionQueue.length}
-            currentIndex={sessionState.currentMissionIndex}
-          />
+          <>
+            <CoachNote note={sessionState.note} />
+            <CurrentMission
+              mission={currentMission}
+              onComplete={completeCurrentMission}
+              onSkip={skipCurrentMission}
+              totalMissions={sessionState.missionQueue.length}
+              queueLength={sessionState.missionQueue.length}
+              currentIndex={sessionState.currentMissionIndex}
+            />
+          </>
         )}
 
         {sessionState.status === 'complete' && <CompletionScreen onReset={resetSession} />}
@@ -272,6 +304,16 @@ export default function App() {
         onRoomTypeChange={(id) => persistPreference('ROOM_TYPE', id, setRoomType)}
         difficulty={difficulty}
         onDifficultyChange={(id) => persistPreference('DIFFICULTY', id, setDifficulty)}
+        missionCount={missionCount}
+        onMissionCountChange={(value) => persistPreference('MISSION_COUNT', value, setMissionCount)}
+        streakIncludesSkips={streakIncludesSkips}
+        onStreakIncludesSkipsChange={(value) =>
+          persistPreference(
+            'STREAK_INCLUDES_SKIPS',
+            value ? 'true' : 'false',
+            setStreakIncludesSkips
+          )
+        }
       />
     </div>
   );

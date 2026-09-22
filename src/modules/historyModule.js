@@ -3,6 +3,8 @@
  * Enables gamification and progress tracking for ADHD users
  */
 
+import { loadPreference } from './storageModule';
+
 const STORAGE_KEY_HISTORY = 'session_history';
 const STORAGE_KEY_STATS = 'user_statistics';
 const STORAGE_KEY_LAST_SESSION_DATE = 'last_session_date';
@@ -93,13 +95,25 @@ export const getHistoryFiltered = (filters = {}) => {
 };
 
 /**
- * Calculate current streak (consecutive days with at least 1 completed mission)
+ * Whether a session with at least one completed mission (rather than every
+ * mission) keeps the streak alive. Defaults to true: an ADHD user who starts
+ * and skips still showed up. 'Completionist' and the "with every mission
+ * done" stats stay all-done regardless of this setting.
  */
-export const calculateStreak = () => {
+export const isStreakIncludingSkips = () =>
+  loadPreference('STREAK_INCLUDES_SKIPS', 'true') !== 'false';
+
+const sessionCountsForStreak = (session, includeSkips) =>
+  includeSkips ? session.completedCount > 0 : session.completedCount === session.missionCount;
+
+/**
+ * Calculate current streak (consecutive days meeting the streak bar above).
+ */
+export const calculateStreak = (includeSkips = isStreakIncludingSkips()) => {
   const history = loadHistory();
   if (history.length === 0) return 0;
 
-  const completed = history.filter((s) => s.completedCount === s.missionCount);
+  const completed = history.filter((s) => sessionCountsForStreak(s, includeSkips));
   if (completed.length === 0) return 0;
 
   // Get unique dates sorted descending
@@ -228,7 +242,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'first_clean',
       name: 'First Clean',
-      description: 'Completed your first session',
+      description: 'Finished your first session',
       icon: '🎯',
       unlockedAt: history[0]?.timestamp
     });
@@ -240,7 +254,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'speed_demon',
       name: 'Speed Demon',
-      description: 'Completed a session in under 5 minutes',
+      description: 'Wrapped up a session in under 5 minutes',
       icon: '⚡',
       unlockedAt: first?.timestamp
     });
@@ -252,7 +266,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'patient',
       name: 'Patient',
-      description: 'Completed a session over 30 minutes',
+      description: 'Stuck with one session for 30+ minutes',
       icon: '🧘',
       unlockedAt: first?.timestamp
     });
@@ -263,7 +277,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'week_warrior',
       name: 'Week Warrior',
-      description: '7 days in a row!',
+      description: 'Cleared every mission, 7 days in a row',
       icon: '🔥',
       unlockedAt: Date.now()
     });
@@ -274,7 +288,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'unstoppable',
       name: 'Unstoppable',
-      description: '14 days in a row!',
+      description: 'Cleared every mission, 14 days in a row',
       icon: '💪',
       unlockedAt: Date.now()
     });
@@ -285,7 +299,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'completionist',
       name: 'Completionist',
-      description: 'Finished 10 complete sessions',
+      description: 'Cleared every mission in 10 sessions',
       icon: '✨',
       unlockedAt: Date.now()
     });
@@ -296,7 +310,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'time_master',
       name: 'Time Master',
-      description: 'Over 10 hours of cleaning!',
+      description: '10 hours of cleaning, all added up',
       icon: '⏰',
       unlockedAt: Date.now()
     });
@@ -307,7 +321,7 @@ export const getAchievements = () => {
     achievements.push({
       id: 'all_star',
       name: 'All-Star',
-      description: '100+ missions completed!',
+      description: '100 missions done',
       icon: '⭐',
       unlockedAt: Date.now()
     });
