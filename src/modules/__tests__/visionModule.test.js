@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { visionModule, getFallbackMissions, DEFAULT_FALLBACK_DATA } from '../visionModule';
+import {
+  visionModule,
+  getFallbackMissions,
+  DEFAULT_FALLBACK_DATA,
+  SIGNED_OUT_MESSAGE
+} from '../visionModule';
 import { prepareImageForUpload } from '../imageModule';
 
 // jsdom can't decode images; pass photos through unchanged unless a test says otherwise.
@@ -120,5 +125,32 @@ describe('visionModule.analyzeImage resizing', () => {
 
     await expect(visionModule.analyzeImage(file())).rejects.toThrow("Couldn't open that photo");
     expect(fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('visionModule.analyzeImage behind Cloudflare Access', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("doesn't follow redirects, so an expired login can be recognised", async () => {
+    fetch.mockResolvedValue(jsonResponse({ status: 'retake', note: '', missions: [] }));
+
+    await visionModule.analyzeImage(file());
+
+    expect(fetch.mock.calls[0][1].redirect).toBe('manual');
+  });
+
+  it.each([
+    ['a redirect to the sign-in page', { type: 'opaqueredirect', ok: false, status: 0 }],
+    ['a 403 from Access', { type: 'basic', ok: false, status: 403 }]
+  ])('asks the user to sign in again on %s', async (_, response) => {
+    fetch.mockResolvedValue({ ...response, json: async () => ({}) });
+
+    await expect(visionModule.analyzeImage(file())).rejects.toThrow(SIGNED_OUT_MESSAGE);
   });
 });

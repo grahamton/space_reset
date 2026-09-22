@@ -8,6 +8,12 @@
         href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='5' fill='%234f46e5'/><path d='M13 2 5 14h6l-1 8 8-12h-6z' fill='white'/></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#4f46e5" />
+    <!-- Installable from Chrome ("Add to Home Screen"). use-credentials matters:
+         the app sits behind Cloudflare Access, and without the login cookie the
+         manifest request is redirected to the sign-in page and install fails. -->
+    <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Space Reset" />
     <meta name="description" content="Snap a photo of a messy room and get a few small, timed cleaning missions. Don't clean everything. Just start somewhere." />
     <title>Space Reset · Just start somewhere</title>
 </head>

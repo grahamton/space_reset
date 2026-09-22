@@ -13,11 +13,15 @@ import {
 } from '../../shared/roomTypes.js';
 import { prepareImageForUpload } from './imageModule.js';
 
-// Dev goes through the Vite proxy (see vite.config.js); production builds set
-// VITE_WORKER_URL to the deployed worker.
+// Same-origin by default: the Vite proxy in dev, and in production the worker
+// serves the app itself (worker/wrangler.toml [assets]). VITE_WORKER_URL is only
+// for hosting the app somewhere other than the worker.
 const MISSIONS_ENDPOINT = import.meta.env.VITE_WORKER_URL
   ? `${import.meta.env.VITE_WORKER_URL.replace(/\/$/, '')}/api/missions`
   : '/api/missions';
+
+export const SIGNED_OUT_MESSAGE =
+  'Your sign-in has expired. Reload the app to sign in again, then retake the photo.';
 
 /** Offline missions, used only when the user explicitly opts in after a failure. */
 export const DEFAULT_FALLBACK_DATA = {
@@ -112,6 +116,10 @@ export const visionModule = {
       response = await fetch(MISSIONS_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Behind Cloudflare Access, an expired login redirects to the sign-in
+        // page on another origin. Followed, that surfaces as a bare network
+        // error; kept manual, it's recognisable below.
+        redirect: 'manual',
         body: JSON.stringify({
           image,
           mimeType: upload.type,
@@ -123,6 +131,10 @@ export const visionModule = {
       });
     } catch {
       throw new Error("Can't connect right now. Check your internet, then try again.");
+    }
+
+    if (response.type === 'opaqueredirect' || response.status === 401 || response.status === 403) {
+      throw new Error(SIGNED_OUT_MESSAGE);
     }
 
     const payload = await response.json().catch(() => ({}));
