@@ -26,6 +26,12 @@ const SettingsModal = ({
   onStreakIncludesSkipsChange
 }) => {
   const closeButtonRef = useRef(null);
+  // App passes a new onClose on every render (each setting change re-renders
+  // it). Read it through a ref so the effect below runs only when the dialog
+  // opens or closes, not on every change; otherwise focus would jump away
+  // from the control the user just used.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -35,14 +41,14 @@ const SettingsModal = ({
     closeButtonRef.current?.focus();
 
     const handleEscape = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onCloseRef.current();
     };
     document.addEventListener('keydown', handleEscape);
     return () => {
       document.removeEventListener('keydown', handleEscape);
       opener?.focus?.();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
