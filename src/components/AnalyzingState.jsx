@@ -15,7 +15,7 @@ const AnalyzingState = () => (
       </div>
     </div>
     <div className="space-y-2">
-      <h3 className="text-2xl font-bold text-gray-800">Reading your room…</h3>
+      <h2 className="text-2xl font-bold text-gray-800">Reading your room…</h2>
       <p className="text-gray-500 font-medium">Picking a few small missions. Hang tight.</p>
     </div>
   </div>

@@ -1,11 +1,12 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Camera, ImageIcon, AlertCircle, ChevronDown, RotateCcw } from 'lucide-react';
 import { PERSONAS } from '../../shared/personas.js';
 import { getSessionSummary } from '../modules/storageModule';
 
-const MAX_FILE_SIZE_MB = 5;
+// Photos are shrunk before upload (in visionModule), so this only guards against decoding
+// something absurd on a phone. Full-res camera shots are well under it.
+const MAX_FILE_SIZE_MB = 40;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const MAX_DIMENSION = 4000;
 
 const UploadAndAnalyze = ({
   onUpload,
@@ -18,13 +19,15 @@ const UploadAndAnalyze = ({
   hasSession
 }) => {
   const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const infoRef = useRef(null);
   const [validationError, setValidationError] = useState(null);
 
   const validateFile = (file) => {
     // Check file size
     if (file.size > MAX_FILE_SIZE_BYTES) {
       setValidationError(
-        `That photo is ${(file.size / 1024 / 1024).toFixed(1)} MB, and the limit is ${MAX_FILE_SIZE_MB} MB. Try a screenshot of it instead.`
+        `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB, and the limit is ${MAX_FILE_SIZE_MB} MB. Try a different photo.`
       );
       return false;
     }
@@ -38,51 +41,48 @@ const UploadAndAnalyze = ({
     return true;
   };
 
-  const validateDimensions = (img) => {
-    if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
-      setValidationError(
-        `That photo is ${img.width}×${img.height} px, and the limit is ${MAX_DIMENSION} px on each side. Try a screenshot of it instead.`
-      );
-      return false;
-    }
-    return true;
-  };
-
-  const handleFile = async (e) => {
-    const file = e.target.files?.[0];
+  // Synchronous on purpose: hand the photo straight to onUpload so the
+  // analyzing screen shows the moment the camera returns. Resizing happens
+  // behind that screen. Clearing the input marks the photo as handled.
+  const takeFile = (input) => {
+    const file = input?.files?.[0];
     if (!file) return;
+    input.value = '';
 
-    // Clear validation error when new file is picked
     setValidationError(null);
-
-    // Validate file
-    if (!validateFile(file)) {
-      e.target.value = '';
-      return;
-    }
-
-    // Validate dimensions
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        if (validateDimensions(img)) {
-          onUpload(file);
-        }
-        e.target.value = '';
-      };
-      img.onerror = () => {
-        setValidationError("Couldn't open that photo. Try a different one.");
-        e.target.value = '';
-      };
-      img.src = event.target.result;
-    };
-    reader.onerror = () => {
-      setValidationError("Couldn't read that file. Try a different photo.");
-      e.target.value = '';
-    };
-    reader.readAsDataURL(file);
+    if (validateFile(file)) onUpload(file);
   };
+
+  const handleFile = (e) => takeFile(e.target);
+
+  // Android Chrome sometimes skips the change event when the camera app hands
+  // back a photo, until the next tap on the page. When the page comes back
+  // into view, pick up any photo still sitting unhandled in an input.
+  useEffect(() => {
+    let timer;
+    const recheck = () => {
+      if (document.visibilityState !== 'visible') return;
+      clearTimeout(timer);
+      // Give a change event that is on its way a moment to arrive first.
+      timer = setTimeout(() => {
+        takeFile(cameraInputRef.current);
+        takeFile(fileInputRef.current);
+      }, 500);
+    };
+    window.addEventListener('focus', recheck);
+    document.addEventListener('visibilitychange', recheck);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('focus', recheck);
+      document.removeEventListener('visibilitychange', recheck);
+    };
+  });
+
+  // A retake/tidy note lands back on this screen, often below the fold on a
+  // phone; bring it into view so it's clear the photo was looked at.
+  useEffect(() => {
+    if (info) infoRef.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [info]);
 
   const sessionSummary = hasSession ? getSessionSummary() : null;
 
@@ -118,7 +118,7 @@ const UploadAndAnalyze = ({
       <div className="w-full max-w-xs">
         <label
           htmlFor="persona-select"
-          className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 text-center"
+          className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 text-center"
         >
           Vibe Check
         </label>
@@ -137,7 +137,7 @@ const UploadAndAnalyze = ({
             ))}
           </select>
           <ChevronDown
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none"
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none"
             aria-hidden="true"
           />
         </div>
@@ -152,6 +152,7 @@ const UploadAndAnalyze = ({
             SNAP THE ROOM
           </span>
           <input
+            ref={cameraInputRef}
             type="file"
             accept="image/*"
             capture="environment"
@@ -165,7 +166,7 @@ const UploadAndAnalyze = ({
       {/* Upload from Gallery */}
       <button
         onClick={() => fileInputRef.current?.click()}
-        className="text-gray-400 hover:text-indigo-600 font-medium flex items-center gap-2 transition-colors py-2 px-4 rounded-full hover:bg-gray-50"
+        className="text-gray-500 hover:text-indigo-600 font-medium flex items-center gap-2 transition-colors min-h-11 px-4 rounded-full hover:bg-gray-50"
         aria-label="Choose a photo from your device"
       >
         <ImageIcon className="w-5 h-5" aria-hidden="true" />
@@ -182,7 +183,8 @@ const UploadAndAnalyze = ({
       {/* Info Display (e.g. a friendly "try another photo" note) — not an error */}
       {info && !error && !validationError && (
         <div
-          className="flex items-center gap-2 text-indigo-700 bg-indigo-50 px-4 py-3 rounded-xl text-sm border border-indigo-100 shadow-sm max-w-xs w-full"
+          ref={infoRef}
+          className="flex items-center gap-2 text-indigo-700 bg-indigo-50 px-4 py-3 rounded-xl text-sm border border-indigo-100 shadow-sm max-w-xs w-full scroll-mb-4"
           role="status"
         >
           <Camera className="w-5 h-5 shrink-0" aria-hidden="true" />

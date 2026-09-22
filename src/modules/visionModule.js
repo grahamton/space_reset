@@ -11,6 +11,7 @@ import {
   DEFAULT_DIFFICULTY,
   DEFAULT_MISSION_COUNT
 } from '../../shared/roomTypes.js';
+import { prepareImageForUpload } from './imageModule.js';
 
 // Dev goes through the Vite proxy (see vite.config.js); production builds set
 // VITE_WORKER_URL to the deployed worker.
@@ -101,7 +102,10 @@ export const visionModule = {
       missionCount = DEFAULT_MISSION_COUNT
     } = {}
   ) => {
-    const image = await fileToBase64(file);
+    // Shrink camera photos to Claude's vision limit. Done here, behind the
+    // analyzing screen, so the UI responds the moment a photo is taken.
+    const upload = await prepareImageForUpload(file);
+    const image = await fileToBase64(upload);
 
     let response;
     try {
@@ -110,7 +114,7 @@ export const visionModule = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image,
-          mimeType: file.type,
+          mimeType: upload.type,
           personaId,
           roomType,
           difficulty,

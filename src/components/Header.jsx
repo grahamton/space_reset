@@ -18,7 +18,7 @@ const Header = ({ onOpenSettings, onOpenStats, sessionStatus, onReset, streak = 
           onClick={() => {
             if (confirm("End this session? It won't be saved to your history.")) onReset();
           }}
-          className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+          className="p-2.5 text-gray-500 hover:text-red-600 transition-colors"
           title="End session"
           aria-label="End session"
         >
@@ -27,7 +27,7 @@ const Header = ({ onOpenSettings, onOpenStats, sessionStatus, onReset, streak = 
       )}
       <button
         onClick={onOpenStats}
-        className="p-2 text-gray-400 hover:text-orange-600 transition-colors flex items-center gap-1"
+        className="p-2.5 text-gray-500 hover:text-orange-600 transition-colors flex items-center gap-1"
         aria-label={streak > 0 ? `Your progress: ${streak}-day streak` : 'Your progress'}
       >
         <Flame className={`w-6 h-6 ${streak > 0 ? 'text-orange-500' : ''}`} aria-hidden="true" />
@@ -39,7 +39,7 @@ const Header = ({ onOpenSettings, onOpenStats, sessionStatus, onReset, streak = 
       </button>
       <button
         onClick={onOpenSettings}
-        className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+        className="p-2.5 text-gray-500 hover:text-gray-600 transition-colors"
         aria-label="Open settings"
       >
         <Settings className="w-6 h-6" aria-hidden="true" />

@@ -98,3 +98,37 @@ describe('UploadAndAnalyze', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Analysis failed. Try again?');
   });
 });
+
+describe('UploadAndAnalyze photo hand-off', () => {
+  const photo = () => new File(['x'], 'PXL.jpg', { type: 'image/jpeg' });
+
+  const setFiles = (input, files) =>
+    Object.defineProperty(input, 'files', { value: files, configurable: true });
+
+  it('hands the photo over immediately, so the analyzing screen shows at once', () => {
+    const onUpload = vi.fn();
+    renderComponent({ onUpload });
+    const input = screen.getByLabelText('Take a photo of the room');
+
+    setFiles(input, [photo()]);
+    fireEvent.change(input);
+
+    expect(onUpload).toHaveBeenCalledTimes(1);
+    expect(onUpload.mock.calls[0][0].name).toBe('PXL.jpg');
+  });
+
+  it('picks up a camera photo when the page regains focus without a change event', () => {
+    vi.useFakeTimers();
+    const onUpload = vi.fn();
+    renderComponent({ onUpload });
+    const input = screen.getByLabelText('Take a photo of the room');
+
+    // Android Chrome returned from the camera but never fired `change`.
+    setFiles(input, [photo()]);
+    fireEvent.focus(window);
+    vi.advanceTimersByTime(600);
+
+    expect(onUpload).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+});

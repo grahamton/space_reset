@@ -18,7 +18,7 @@ const StatsDashboard = () => {
     <div className="w-full max-w-md mx-auto p-6 space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
-        <h2 className="text-3xl font-bold text-gray-900">Your progress</h2>
+        <h1 className="text-3xl font-bold text-gray-900">Your progress</h1>
         <p className="text-gray-500">Every session counts, even the short ones.</p>
       </div>
 
@@ -72,9 +72,7 @@ const StatsDashboard = () => {
             <TrendingUp className="w-5 h-5 text-green-600" aria-hidden="true" />
             <span className="text-xs font-bold text-gray-600 uppercase">Missions</span>
           </div>
-          <div className="text-3xl font-bold text-green-600">
-            {stats.totalMissionsCompleted}
-          </div>
+          <div className="text-3xl font-bold text-green-600">{stats.totalMissionsCompleted}</div>
           <p className="text-xs text-gray-600 mt-1">done</p>
         </div>
 
@@ -97,7 +95,7 @@ const StatsDashboard = () => {
               🏆
             </span>
             <div>
-              <h3 className="font-bold text-gray-900">Achievements</h3>
+              <h2 className="font-bold text-gray-900">Achievements</h2>
               <p className="text-xs text-gray-600">{stats.achievements} unlocked</p>
             </div>
           </div>
@@ -112,9 +110,7 @@ const StatsDashboard = () => {
                 <div className="text-3xl mb-1" aria-hidden="true">
                   {achievement.icon}
                 </div>
-                <p className="text-xs font-bold text-gray-700 line-clamp-2">
-                  {achievement.name}
-                </p>
+                <p className="text-xs font-bold text-gray-700 line-clamp-2">{achievement.name}</p>
               </div>
             ))}
           </div>

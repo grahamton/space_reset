@@ -32,6 +32,8 @@ const CurrentMission = ({
   // (that branch below never calls fireTimesUpAlerts). Reset when a fresh
   // countdown starts (new mission, or "More time").
   const alertedRef = useRef(false);
+  const titleRef = useRef(null);
+  const isFirstMission = useRef(true);
 
   // Restore this mission's own timer, or start a fresh time box.
   useEffect(() => {
@@ -61,6 +63,17 @@ const CurrentMission = ({
     }
     setIsFinishing(false);
   }, [mission.id, mission.time]);
+
+  // After Done or Skip the buttons that had focus are re-rendered for a new
+  // mission, so move focus to its title: screen readers announce it, and
+  // keyboard users aren't dropped back at the top of the page.
+  useEffect(() => {
+    if (isFirstMission.current) {
+      isFirstMission.current = false;
+      return;
+    }
+    titleRef.current?.focus({ preventScroll: true });
+  }, [mission.id]);
 
   // Countdown, while there's a deadline. A functional update so the
   // interval survives without needing a render in between each tick.
@@ -165,9 +178,13 @@ const CurrentMission = ({
   const remainingCards = queueLength - currentIndex - 1;
 
   return (
-    <div className="w-full max-w-md mx-auto p-4 flex flex-col h-full max-h-full">
+    // flex-1, not h-full: the coach note can sit above this, and 100% height
+    // pushed Skip/Done off the bottom of the screen. Long mission text scrolls
+    // inside the card; below min-h the card stops shrinking and <main> scrolls,
+    // so the text never collapses to nothing on a short screen.
+    <div className="w-full max-w-md mx-auto p-4 flex flex-col flex-1 min-h-[31rem]">
       <div className="flex justify-between items-center mb-4 px-1 shrink-0">
-        <div className="flex items-center gap-2 text-sm font-bold text-gray-400 uppercase tracking-wider">
+        <div className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-wider">
           <Layers className="w-4 h-4" aria-hidden="true" />
           <span>{remainingCards > 0 ? `${remainingCards} more after this` : 'Last one'}</span>
         </div>
@@ -194,22 +211,32 @@ const CurrentMission = ({
           `}
         >
           {/* Scrollable Content Area */}
-          <div className="flex-1 overflow-y-auto pr-1 min-h-0 mb-4">
+          {/* Focusable so keyboard users can scroll a long mission. */}
+          <div
+            className="flex-1 overflow-y-auto pr-1 min-h-0 mb-4 rounded-lg"
+            tabIndex={0}
+            role="region"
+            aria-label="Mission details"
+          >
             <div
               className={`inline-block px-3 py-1.5 rounded-lg text-xs font-extrabold uppercase tracking-wider mb-3 ${themeClass}`}
             >
               {mission.type || 'Mission'}
             </div>
 
-            <h3 className="text-3xl font-extrabold text-gray-900 mb-3 leading-tight">
+            <h2
+              ref={titleRef}
+              tabIndex={-1}
+              className="text-3xl font-extrabold text-gray-900 mb-3 leading-tight focus:outline-none"
+            >
               {mission.title}
-            </h3>
+            </h2>
 
             <p className="text-gray-600 text-lg leading-relaxed mb-6">{mission.description}</p>
 
             {mission.strategy && (
               <div className="bg-gray-50 p-4 rounded-xl border-l-4 border-indigo-200 mb-2">
-                <p className="text-xs text-gray-400 font-bold uppercase mb-1">Tip</p>
+                <p className="text-xs text-gray-500 font-bold uppercase mb-1">Tip</p>
                 <p className="text-sm text-gray-700 italic font-medium">"{mission.strategy}"</p>
               </div>
             )}
@@ -220,10 +247,10 @@ const CurrentMission = ({
             {phase === 'counting' && (
               <div className="bg-gray-50 rounded-2xl p-3">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-bold text-gray-400 uppercase">Timer</span>
+                  <span className="text-xs font-bold text-gray-500 uppercase">Timer</span>
                   <button
                     onClick={addOneMinute}
-                    className="text-xs font-bold text-indigo-600 hover:bg-indigo-100 px-2 py-1 rounded flex items-center gap-1 transition-colors"
+                    className="text-xs font-bold text-indigo-600 hover:bg-indigo-100 px-3 min-h-11 -my-2 -mr-2 rounded-lg flex items-center gap-1 transition-colors"
                     aria-label="Add 1 minute"
                   >
                     <Plus className="w-3 h-3" aria-hidden="true" /> 1 min
@@ -280,7 +307,7 @@ const CurrentMission = ({
 
             {phase === 'overtime' && (
               <div className="bg-gray-50 rounded-2xl p-3 text-center">
-                <p className="text-xs font-bold text-gray-400 uppercase mb-1">Overtime</p>
+                <p className="text-xs font-bold text-gray-500 uppercase mb-1">Overtime</p>
                 <div
                   role="timer"
                   className="text-4xl font-mono font-bold tracking-tighter text-indigo-500"
@@ -294,7 +321,7 @@ const CurrentMission = ({
             <div className="grid grid-cols-[auto_1fr] gap-3">
               <button
                 onClick={handleSkip}
-                className="px-4 py-3 bg-gray-100 text-gray-500 rounded-2xl font-bold hover:bg-gray-200 hover:text-gray-700 transition-colors flex flex-col items-center justify-center gap-1 text-xs"
+                className="px-4 py-3 bg-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-200 hover:text-gray-700 transition-colors flex flex-col items-center justify-center gap-1 text-xs"
                 aria-label="Skip for now. This mission moves to the back of the stack."
               >
                 <SkipForward className="w-5 h-5" aria-hidden="true" />

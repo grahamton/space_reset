@@ -139,4 +139,38 @@ describe('SettingsModal', () => {
 
     expect(screen.getByLabelText('Close settings')).toHaveFocus();
   });
+
+  it('keeps focus on the control just used when a setting change re-renders it', () => {
+    const { rerender } = renderModal();
+    const hard = screen.getAllByRole('button').find((b) => /hard/i.test(b.textContent));
+    hard.focus();
+
+    // App re-renders with a new onClose identity and the updated setting.
+    rerender(<SettingsModal {...defaultProps} difficulty="hard" onClose={vi.fn()} />);
+
+    expect(document.activeElement).toBe(hard);
+  });
+
+  it('calls the latest onClose on Escape after re-renders', () => {
+    const { rerender } = renderModal();
+    const latest = vi.fn();
+    rerender(<SettingsModal {...defaultProps} onClose={latest} />);
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(latest).toHaveBeenCalledTimes(1);
+    expect(defaultProps.onClose).not.toHaveBeenCalled();
+  });
+
+  it('returns focus to the opener when it closes', () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+
+    const { rerender } = renderModal();
+    rerender(<SettingsModal {...defaultProps} isOpen={false} />);
+
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
 });

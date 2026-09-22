@@ -8,6 +8,26 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* One visible focus ring everywhere, for keyboard and switch users. Mouse and
+   touch don't trigger :focus-visible, so taps stay clean. */
+:focus-visible {
+  outline: 3px solid theme('colors.indigo.600');
+  outline-offset: 2px;
+}
+
+/* The card fly-out, zoom-ins and spinners can be uncomfortable with vestibular
+   disorders; respect the OS "remove animations" setting. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Smooth scrolling for the drawer */
 .drawer-scroll {
   -webkit-overflow-scrolling: touch;

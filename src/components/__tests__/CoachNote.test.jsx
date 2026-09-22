@@ -16,7 +16,7 @@ describe('CoachNote', () => {
 
   it('can be dismissed', () => {
     render(<CoachNote note="Alright, let's move." />);
-    fireEvent.click(screen.getByLabelText('Dismiss'));
+    fireEvent.click(screen.getByLabelText('Dismiss coach note'));
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 });
