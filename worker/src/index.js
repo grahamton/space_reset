@@ -13,6 +13,7 @@ import { PERSONAS, DEFAULT_PERSONA } from '../../shared/personas.js';
 import {
   MISSION_TYPES,
   DEFAULT_DIFFICULTY,
+  getDifficulty,
   normalizeMissionCount
 } from '../../shared/roomTypes.js';
 import { buildMissionPrompt } from '../../shared/prompt.js';
@@ -234,8 +235,12 @@ export default {
         return json({ error: 'Analysis came back garbled. Try again?' }, { status: 502, origin });
       }
 
+      // The prompt asks for multiples of 30 within the difficulty's cap; the
+      // schema can't express either, so hold the model to it here.
+      const { timePerMission } = getDifficulty(difficulty);
       const missions = response.parsed_output.missions.map((mission, index) => ({
         ...mission,
+        time: Math.min(Math.max(Math.round(mission.time / 30) * 30, 30), timePerMission),
         id: `m${index + 1}`
       }));
 

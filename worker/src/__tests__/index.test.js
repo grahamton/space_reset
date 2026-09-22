@@ -113,6 +113,18 @@ describe('mission worker', () => {
       expect(body.missions[0].title).toBe('Dish Dash');
     });
 
+    it("rounds times to 30 seconds and caps them at the difficulty's limit", async () => {
+      parse.mockResolvedValue(
+        okResponse([1000, 95, 10].map((time) => ({ ...sampleMission, time })))
+      );
+
+      const hard = await (await worker.fetch(missionsRequest(), ENV)).json();
+      expect(hard.missions.map((m) => m.time)).toEqual([900, 90, 30]);
+
+      const easy = await (await worker.fetch(missionsRequest({ difficulty: 'easy' }), ENV)).json();
+      expect(easy.missions.map((m) => m.time)).toEqual([300, 90, 30]);
+    });
+
     it('returns 200 for a retake with no missions, carrying the note through', async () => {
       const note = 'Too blurry to see the room. Try again from the doorway.';
       parse.mockResolvedValue(okResponse([], 'retake', note));

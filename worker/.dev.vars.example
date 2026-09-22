@@ -1,3 +1,6 @@
 # Copy to worker/.dev.vars for `wrangler dev`. Never commit the real file.
 # Production uses: wrangler secret put ANTHROPIC_API_KEY
 ANTHROPIC_API_KEY=sk-ant-...
+
+# Only needed by `npm run copy-check` (scripts/copy-check.js), not by the worker.
+TYPESAFE_API_KEY=

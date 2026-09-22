@@ -1,0 +1,161 @@
+{
+  "about": "Hand-written responses with known problems, for checking the checks. Each run's `expect` lists the rule@location findings that should flag; anything else that flags is a false positive. Run: npm run copy-check -- scripts/copy-check-canaries.json",
+  "runs": [
+    {
+      "photo": "canary-clean",
+      "personaId": "gentle",
+      "ok": true,
+      "expect": [],
+      "response": {
+        "status": "ok",
+        "note": "Nice and small today. We'll start with the easy wins and see how it feels.",
+        "missions": [
+          {
+            "type": "dishes",
+            "title": "Mugs to the Sink",
+            "description": "Carry the two mugs on the desk and the plate by the bed to the kitchen sink.",
+            "strategy": "Stack the plate on top and hold both mugs in one hand so it's a single trip."
+          },
+          {
+            "type": "laundry",
+            "title": "Floor Clothes Roundup",
+            "description": "Every shirt and sock on the floor between the bed and the wardrobe goes into the basket.",
+            "strategy": "Start at the doorway and work toward the window. Don't sort, just scoop."
+          }
+        ]
+      }
+    },
+    {
+      "photo": "canary-person",
+      "personaId": "roastMaster",
+      "ok": true,
+      "expect": ["mentions_person@mission 1", "mentions_person@note"],
+      "response": {
+        "status": "ok",
+        "note": "Your roommate on the sofa has clearly given up. You don't have to.",
+        "missions": [
+          {
+            "type": "laundry",
+            "title": "Hoodie Situation",
+            "description": "Get the guy on the bed to hand over that grey hoodie he's wearing, then basket every other shirt on the floor.",
+            "strategy": "Start with the pile nearest the door and scoop with both arms."
+          }
+        ]
+      }
+    },
+    {
+      "photo": "canary-meta",
+      "personaId": "bestie",
+      "ok": true,
+      "expect": ["meta_text@mission 1", "meta_text@mission 2"],
+      "response": {
+        "status": "ok",
+        "note": "This room is about to get a glow-up and you're the star.",
+        "missions": [
+          {
+            "type": "trash",
+            "title": "Wrapper Wipeout (alt: Snack Attack)",
+            "description": "Bag every wrapper and can on the coffee table and floor.",
+            "strategy": "Open the bag first and keep it in your left hand."
+          },
+          {
+            "type": "clear",
+            "title": "Desk Reset",
+            "description": "Gather the [ITEM] on the desk into one box. [Note: keep this under 25 words]",
+            "strategy": "Pick the box first, then sweep everything toward it."
+          }
+        ]
+      }
+    },
+    {
+      "photo": "canary-shame",
+      "personaId": "roastMaster",
+      "ok": true,
+      "expect": ["shames_user@mission 1", "shames_user@note"],
+      "response": {
+        "status": "ok",
+        "note": "Honestly, only a lazy person with zero self-respect lives like this.",
+        "missions": [
+          {
+            "type": "trash",
+            "title": "Garbage Human Cleanup",
+            "description": "Bag the takeaway boxes on the desk. Your ADHD brain probably forgot they exist.",
+            "strategy": "Start with the box nearest the chair and work left."
+          }
+        ]
+      }
+    },
+    {
+      "photo": "canary-endearment",
+      "personaId": "bestie",
+      "ok": true,
+      "expect": ["endearment@mission 1", "endearment@note"],
+      "response": {
+        "status": "ok",
+        "note": "Okay queen, let's make this bedroom slay, sweetie!",
+        "missions": [
+          {
+            "type": "laundry",
+            "title": "Laundry Slay, Babe",
+            "description": "Toss every sock and shirt on the floor into the basket, hun.",
+            "strategy": "Start by the bed and work toward the door in one sweep."
+          }
+        ]
+      }
+    },
+    {
+      "photo": "canary-vague",
+      "personaId": "gentle",
+      "ok": true,
+      "expect": ["vague_strategy@mission 1"],
+      "response": {
+        "status": "ok",
+        "note": "A few small things and this room will feel lighter.",
+        "missions": [
+          {
+            "type": "organize",
+            "title": "Books Back Home",
+            "description": "Put the four books on the floor by the bed back on the shelf above the desk.",
+            "strategy": "You've totally got this. Every little bit counts, so be proud of yourself!"
+          }
+        ]
+      }
+    },
+    {
+      "photo": "canary-restated-note",
+      "personaId": "drillSergeant",
+      "ok": true,
+      "expect": ["note_restates_mission@note"],
+      "response": {
+        "status": "ok",
+        "note": "Take every plate on the nightstand to the sink. Now.",
+        "missions": [
+          {
+            "type": "dishes",
+            "title": "Plates. Sink. Now.",
+            "description": "Carry the three plates on the nightstand to the kitchen sink.",
+            "strategy": "Stack them first so it's one trip."
+          }
+        ]
+      }
+    },
+    {
+      "photo": "canary-type",
+      "personaId": "gentle",
+      "ok": true,
+      "expect": ["type_fit@mission 1"],
+      "response": {
+        "status": "ok",
+        "note": "Let's clear a little space together.",
+        "missions": [
+          {
+            "type": "trash",
+            "title": "Mug Rescue",
+            "description": "Carry the three mugs and the cereal bowl on the desk to the kitchen sink.",
+            "strategy": "Nest the mugs inside the bowl so it's one trip."
+          }
+        ]
+      }
+    }
+  ]
+}
