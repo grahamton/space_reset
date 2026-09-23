@@ -13,10 +13,20 @@ not_found_handling = "single-page-application"
 # Only the API runs Worker code; everything else is a static file.
 run_worker_first = ["/api/*"]
 
-# Same-origin in production, so CORS only matters for local tools that call
-# the worker directly. "*" is fine behind Access.
+# The app is public and every analysis is billed to one Anthropic key: at most
+# 3 per IP per minute. Cloudflare only allows a 10 or 60 second period.
+[[ratelimits]]
+name = "MISSIONS_RATE_LIMIT"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 3
+  period = 60
+
+# The app calls the API from its own origin, and localhost is always allowed
+# for dev. List other sites that embed the app here, comma-separated,
+# e.g. "https://example.com,https://www.example.com".
 [vars]
-ALLOWED_ORIGIN = "*"
+ALLOWED_ORIGIN = ""
 
 # ANTHROPIC_API_KEY is a secret, never a var:
 #   local dev  -> worker/.dev.vars   (gitignored)
