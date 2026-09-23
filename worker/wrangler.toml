@@ -3,7 +3,18 @@ main = "src/index.js"
 compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Set to the deployed Pages origin before going live. "*" is dev-only.
+# One Worker serves both the app and the API, so they share an origin: no
+# CORS, no VITE_WORKER_URL, and a single Cloudflare Access application
+# protects everything. `npm run deploy` at the repo root builds ../dist first.
+[assets]
+directory = "../dist"
+# Client-side routing: unknown paths get index.html instead of a 404.
+not_found_handling = "single-page-application"
+# Only the API runs Worker code; everything else is a static file.
+run_worker_first = ["/api/*"]
+
+# Same-origin in production, so CORS only matters for local tools that call
+# the worker directly. "*" is fine behind Access.
 [vars]
 ALLOWED_ORIGIN = "*"
 

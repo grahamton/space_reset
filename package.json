@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "deploy": "npm run build && npm --prefix worker run deploy",
     "lint": "eslint .",
     "format": "prettier --write \"{src,shared,worker/src}/**/*.{js,jsx,css}\"",
     "test": "vitest run",

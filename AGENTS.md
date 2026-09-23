@@ -20,8 +20,10 @@ npm run test:coverage
 npm run copy-check   # eval-photos/ x personas through the worker, then TypeSafe rule checks
 
 cd worker && npm run dev      # wrangler dev on :8787
-cd worker && npm run deploy
+npm run deploy       # builds dist/ and deploys the worker, which serves app + API
 ```
+
+Deploying and `wrangler secret put` change the live app and bill the user's Anthropic key: only run them when the user asks, and never set the secret before Cloudflare Access protects the URL (see README "Deploying").
 
 The app needs the worker running to analyze a photo. Vite proxies `/api` to `:8787`.
 

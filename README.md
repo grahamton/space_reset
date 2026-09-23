@@ -82,17 +82,28 @@ Inside `worker/`: `npm run dev` (local), `npm run deploy`, `npm run tail` (live 
 
 ## Deploying
 
-**Worker:**
+The worker serves the built app and the API from one origin (`[assets]` in `worker/wrangler.toml`), so there's one thing to deploy and no CORS or `VITE_WORKER_URL` to set.
 
 ```bash
-cd worker
-npx wrangler secret put ANTHROPIC_API_KEY
-npm run deploy
+npx wrangler login     # once, from worker/ (opens a browser)
+npm run deploy         # from the repo root: builds dist/ and deploys the worker
 ```
 
-Then set `ALLOWED_ORIGIN` in `worker/wrangler.toml` to your Pages URL so CORS isn't wide open.
+It lands at `https://space-reset-worker.<your-subdomain>.workers.dev`.
 
-**App** — Cloudflare Pages, build command `npm run build`, output directory `dist`. Set `VITE_WORKER_URL` to the deployed worker origin (see `.env.example`).
+**Lock it down before adding the API key.** Every photo is billed to your Anthropic key, so put Cloudflare Access in front first:
+
+1. Cloudflare dashboard → Workers & Pages → `space-reset-worker` → Settings → Domains & Routes → on the `workers.dev` row, enable **Cloudflare Access**. That creates an Access application for the URL.
+2. In Zero Trust → Access → Applications, edit that application: allow your email address(es), and set a long session duration (e.g. 1 month) so the installed app rarely asks you to sign in.
+3. Open the URL in a private window and check you get the Cloudflare sign-in page, not the app.
+
+Then add the key from `worker/`, and paste it at the prompt:
+
+```bash
+npx wrangler secret put ANTHROPIC_API_KEY
+```
+
+**Install on Android:** open the URL in Chrome, sign in, then menu → **Add to Home screen** (or **Install app**). It opens full-screen with its own icon. Updates go live on the next `npm run deploy`; reopen the app to pick them up. If your sign-in expires, the app says so; reload it to sign in again.
 
 ## Configuration
 
