@@ -101,11 +101,11 @@ export const COPY_RULES = [
     question: () => ({
       type: 'noul',
       instructions:
-        'Does `note` repeat or restate the instruction of any mission in `missions`, instead of being a short intro to the session?',
+        'Does `note` repeat or restate the instruction or the strategy of any mission in `missions`, instead of being a short intro to the session?',
       criteria: {
-        true: 'The note tells the reader to do a specific job that one of the missions already covers.',
+        true: 'The note tells the reader to do a specific job that one of the missions already covers, or repeats how a mission says to do it (its strategy or tactic).',
         false:
-          'The note sets the mood or comments on the room without giving a mission instruction.'
+          'The note sets the mood or comments on the room, even naming its biggest mess, without saying what to do or how to do it.'
       }
     })
   }
