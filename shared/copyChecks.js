@@ -13,7 +13,7 @@
  */
 
 import { MISSION_TYPES } from './roomTypes.js';
-import { MISSION_TYPE_GUIDE } from './prompt.js';
+import { MISSION_TYPE_GUIDE, MISSION_TYPE_RULE } from './prompt.js';
 
 /** Starting thresholds from the TypeSafe guardrails pattern; tune on real output. */
 export const COPY_CHECK_THRESHOLDS = { review: 0.35, flag: 0.7 };
@@ -116,7 +116,7 @@ const TYPE_NONE = 'none';
 /** The type a card's text actually describes, to compare with the type Claude assigned. */
 const typeFitQuestion = (path) => ({
   type: 'choice',
-  instructions: `Which kind of cleaning job does the title and description of \`${path}\` describe?`,
+  instructions: `Which kind of cleaning job does the title and description of \`${path}\` describe? ${MISSION_TYPE_RULE}`,
   criteria: {
     ...Object.fromEntries(MISSION_TYPES.map((type) => [type, MISSION_TYPE_GUIDE[type]])),
     [TYPE_NONE]: 'None of these, or several different kinds of job at once'

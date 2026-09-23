@@ -18,7 +18,7 @@ import {
 } from '../../shared/roomTypes.js';
 import { buildMissionPrompt } from '../../shared/prompt.js';
 
-const MODEL = 'claude-opus-5';
+const MODEL = 'claude-sonnet-5';
 
 // The client shrinks photos to Claude's vision limit (a few hundred KB, 3MB at most)
 // before upload, so this is a generous guard including base64's ~33% overhead.

@@ -107,7 +107,7 @@ npx wrangler secret put ANTHROPIC_API_KEY
 
 ## Configuration
 
-The model and reasoning effort live at the top of `worker/src/index.js`. It runs `claude-opus-5` at `medium` effort — analysis sits behind a spinner, so latency is a feature. Raise the effort if mission quality disappoints.
+The model and reasoning effort live at the top of `worker/src/index.js`. It runs `claude-sonnet-5` at `medium` effort — analysis sits behind a spinner, so latency is a feature. Raise the effort if mission quality disappoints.
 
 To add a persona, add an entry to `shared/personas.js`. Nothing else needs to change.
 

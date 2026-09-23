@@ -140,6 +140,30 @@
       }
     },
     {
+      "photo": "canary-type-by-item",
+      "personaId": "gentle",
+      "ok": true,
+      "expect": [],
+      "response": {
+        "status": "ok",
+        "note": "A few things drifted off their spots. Quick resets only.",
+        "missions": [
+          {
+            "type": "laundry",
+            "title": "Floor Clothes To Hamper",
+            "description": "The shirts and jeans on the floor by the bed go into the hamper.",
+            "strategy": "Start at the foot of the bed and scoop toward the hamper."
+          },
+          {
+            "type": "organize",
+            "title": "Jacket Back On Its Hook",
+            "description": "Take the blue jacket off the desk chair and hang it on its hook by the door.",
+            "strategy": "Grab it on your way out of the room so it's one trip."
+          }
+        ]
+      }
+    },
+    {
       "photo": "canary-restated-tactic",
       "personaId": "gentle",
       "ok": true,
