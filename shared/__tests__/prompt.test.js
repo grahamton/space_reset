@@ -74,7 +74,8 @@ describe('buildMissionPrompt', () => {
     const prompt = buildMissionPrompt();
     expect(prompt).toMatch(/## The note/);
     expect(prompt).toMatch(/about 20 words max/);
-    expect(prompt).toMatch(/never mention anyone visible in the photo/);
+    expect(prompt).toMatch(/never mention anyone visible in the photo/i);
+    expect(prompt).toMatch(/Never repeat or restate a mission's instructions or its strategy/);
   });
 
   it('treats the room type as a hint and omits it for "other"', () => {
