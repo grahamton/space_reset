@@ -22,11 +22,21 @@ namespace_id = "1001"
   limit = 3
   period = 60
 
-# The app calls the API from its own origin, and localhost is always allowed
-# for dev. List other sites that embed the app here, comma-separated,
-# e.g. "https://example.com,https://www.example.com".
+# The approximate edge limit above is a fast guard. This SQLite-backed
+# Durable Object makes the per-IP 60-second window and daily global cap exact.
+[[durable_objects.bindings]]
+name = "MISSION_QUOTA"
+class_name = "MissionQuota"
+
+[exports.MissionQuota]
+type = "durable-object"
+storage = "sqlite"
+
+# The app calls the API from its own origin; Rainbowfetch's static page also
+# calls it cross-origin. localhost is always allowed for local development.
 [vars]
-ALLOWED_ORIGIN = ""
+ALLOWED_ORIGIN = "https://rainbowfetch.com,https://www.rainbowfetch.com"
+DAILY_MISSION_CAP = "50"
 
 # ANTHROPIC_API_KEY is a secret, never a var:
 #   local dev  -> worker/.dev.vars   (gitignored)
