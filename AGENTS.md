@@ -17,7 +17,7 @@ npm run lint         # ESLint over src/, shared/, worker/
 npm run format       # Prettier
 npm test             # Vitest, single run
 npm run test:coverage
-npm run copy-check   # eval-photos/ x personas through the worker, then TypeSafe rule checks
+npm run copy-check   # eval-photos/ x personas through the worker, then Jev (TypeSafe) rule checks
 
 cd worker && npm run dev      # wrangler dev on :8787
 npm run deploy       # builds dist/ and deploys the worker, which serves app + API
@@ -72,7 +72,8 @@ scripts/copy-check.js     Eval runner for copyChecks (Node only; see below)
 
 Lives only in `worker/src/index.js`.
 
-- Model and effort are constants at the top of the file. Default `claude-sonnet-5` at `medium` effort.
+- Model and effort are constants at the top of the file. Default `claude-sonnet-5` at `medium` effort. It was Opus 5; Sonnet is 60% cheaper per token and matched it on every copy rule in `copy-check`. Before changing the model, run `copy-check` on both and compare (README → "Checking mission copy with Jev").
+- The app is public. A per-IP rate limit (`MISSIONS_RATE_LIMIT` binding) and an origin check (`ALLOWED_ORIGIN`) run before any Claude call; keep new Claude-calling routes behind both. The rate limit is approximate, so the real cap is the Anthropic key's spend limit.
 - Persona → `system`. Photo → a base64 `image` content block. Instructions → a `text` block after it.
 - Structured output via `zodOutputFormat(MissionsSchema)` on `client.messages.parse()`; read `response.parsed_output`.
 - Check `stop_reason === 'refusal'` and a null `parsed_output` before using the result.
@@ -96,7 +97,7 @@ Invariants worth preserving:
 
 Vitest + jsdom + Testing Library. `vitest.setup.js` imports `@testing-library/jest-dom` and mocks `localStorage` and `matchMedia`.
 
-Covered: `useMissionControl` (state machine, skip guard, history recording), the worker contract (routing, validation, prompt assembly, failure mapping), `storageModule`, `historyModule`, `Header`, `SettingsModal`.
+Covered: `useMissionControl` (state machine, skip guard, history recording), the worker contract (routing, validation, rate limit and origin check, prompt assembly, failure mapping), `storageModule`, `historyModule`, `Header`, `SettingsModal`.
 
 Worker tests mock `@anthropic-ai/sdk` via `vi.hoisted`; the real zod helper runs against the real schema.
 
@@ -128,9 +129,12 @@ Their file ownership doesn't overlap, so they can run in parallel. Test photos g
 
 ## Checking mission copy
 
-`npm run copy-check` sends every photo in `eval-photos/` through the worker (in-process, no `wrangler dev`) for each persona, then asks TypeSafe whether each card and note breaks a rule from `prompt.js` or `personas.js`: mentions a person, leftover draft text, shaming, pet names, pep-talk strategies, a note that restates a mission, or a `type` that doesn't match the card. It needs `ANTHROPIC_API_KEY` and `TYPESAFE_API_KEY` in `worker/.dev.vars`.
+`npm run copy-check` sends every photo in `eval-photos/` through the worker (in-process, no `wrangler dev`) for each persona, then asks Jev (TypeSafe's System One model) whether each card and note breaks a rule from `prompt.js` or `personas.js`: mentions a person, leftover draft text, shaming, pet names, pep-talk strategies, a note that restates a mission, or a `type` that doesn't match the card. It needs `ANTHROPIC_API_KEY` and `TYPESAFE_API_KEY` in `worker/.dev.vars`.
 
 - Options: `--personas a,b`, `--difficulty`, `--room`, `--count`, `-v` to include review-level findings.
 - Each run saves to `eval-results/` (gitignored). Pass a saved file to re-check it without calling Claude again, e.g. after editing a question in `copyChecks.js`.
 - `npm run copy-check -- scripts/copy-check-canaries.json` checks the checks: hand-written bad cards that must flag, and a clean one that must not. Run it after changing any question, and add a canary when you add a rule.
-- When you change a rule in the prompt or a persona, update the matching question in `copyChecks.js` too. The check has to test the same rule the prompt sets, or it will flag copy that follows it.
+- When you change a rule in the prompt or a persona, update the matching question in `copyChecks.js` too. The check has to test the same rule the prompt sets, or it will flag copy that follows it. Better still, export the rule text from `prompt.js` and reuse it, as `MISSION_TYPE_RULE` does.
+- Act on `flag`; read `review` with suspicion. Review-level hits have mostly been false alarms, and the thresholds in `COPY_CHECK_THRESHOLDS` are still the untuned defaults.
+- 3 photos catch regressions, not small differences. Jev sees only text, so it can't catch a card naming something that isn't in the photo.
+- Observations so far, including the Opus vs Sonnet comparison, are in the README under "Checking mission copy with Jev". Add new findings there.

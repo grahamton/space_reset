@@ -34,6 +34,8 @@ Explain the reasons behind rules in the prompt rather than just giving bare comm
 
 ## Verify with real calls
 
+Prefer `npm run copy-check` from the repo root: it runs the worker in-process over `eval-photos/` × personas (no `wrangler dev`, no rate limit) and has Jev check every card against the prompt's rules. Use `--personas`/`--difficulty` to stay near the call budget below, and compare flags against a BEFORE run. If you change a rule, update its question in `shared/copyChecks.js` and run the canaries (see `AGENTS.md`). For spot checks by hand:
+
 1. Start the worker with `cd worker && npm run dev`. It serves `http://localhost:8787` and reads `ANTHROPIC_API_KEY` from `worker/.dev.vars`.
 2. POST `/api/missions` with the JSON body `{ image: <base64>, mimeType, personaId, roomType, difficulty }`. The valid ids are in `shared/personas.js` and `shared/roomTypes.js`.
 3. Use the test photos in `eval-photos/` at the repo root. They're gitignored because they're licensed stock images, and must never be committed. If the folder is missing, ask for photos rather than downloading any.
