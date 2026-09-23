@@ -140,6 +140,42 @@
       }
     },
     {
+      "photo": "canary-restated-tactic",
+      "personaId": "gentle",
+      "ok": true,
+      "expect": ["note_restates_mission@note"],
+      "response": {
+        "status": "ok",
+        "note": "The sofa has quietly turned into a laundry pile. We'll take it one armful at a time, no sorting.",
+        "missions": [
+          {
+            "type": "laundry",
+            "title": "Clear The Sofa Seat",
+            "description": "The clothes piled on the sofa cushions go into the laundry basket.",
+            "strategy": "Start at the left armrest and work right. Scoop by the armful, no folding or sorting."
+          }
+        ]
+      }
+    },
+    {
+      "photo": "canary-room-remark",
+      "personaId": "roastMaster",
+      "ok": true,
+      "expect": [],
+      "response": {
+        "status": "ok",
+        "note": "Ladies and gentlemen, the sofa. Once seating, now a walk-in wardrobe with cushions. Let's give it its job back.",
+        "missions": [
+          {
+            "type": "laundry",
+            "title": "Sofa Evicts Wardrobe",
+            "description": "Take the clothes piled on the right half of the sofa to the laundry basket.",
+            "strategy": "Scoop it all in one armful. No sorting clean from dirty; that's a future problem."
+          }
+        ]
+      }
+    },
+    {
       "photo": "canary-type",
       "personaId": "gentle",
       "ok": true,
