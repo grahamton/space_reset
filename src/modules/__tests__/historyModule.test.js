@@ -6,7 +6,8 @@ import {
   getAchievements,
   updateStats,
   getStatsSummary,
-  isStreakIncludingSkips
+  isStreakIncludingSkips,
+  toLocalDateString
 } from '../historyModule';
 import { savePreference } from '../storageModule';
 
@@ -64,7 +65,7 @@ describe('historyModule', () => {
     });
 
     it('should calculate 1 streak with 1 completed session today', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateString();
       saveSessionToHistory({
         date: today,
         personaId: 'gentle',
@@ -80,7 +81,7 @@ describe('historyModule', () => {
     it('should break streak if day is missed', () => {
       const twodays = new Date();
       twodays.setDate(twodays.getDate() - 2);
-      const twodaysStr = twodays.toISOString().split('T')[0];
+      const twodaysStr = toLocalDateString(twodays);
 
       // Save 2 days ago
       saveSessionToHistory({
@@ -103,7 +104,7 @@ describe('historyModule', () => {
         const date = new Date();
         date.setDate(date.getDate() - daysAgo);
         saveSessionToHistory({
-          date: date.toISOString().split('T')[0],
+          date: toLocalDateString(date),
           personaId: 'gentle',
           missionCount: 5,
           completedCount: 5,
@@ -119,7 +120,7 @@ describe('historyModule', () => {
       yesterday.setDate(yesterday.getDate() - 1);
 
       saveSessionToHistory({
-        date: yesterday.toISOString().split('T')[0],
+        date: toLocalDateString(yesterday),
         personaId: 'gentle',
         missionCount: 5,
         completedCount: 5,
@@ -133,7 +134,7 @@ describe('historyModule', () => {
       // STREAK_INCLUDES_SKIPS defaults to true (see the describe block below),
       // so an incomplete session only breaks the streak under the strict,
       // all-done setting.
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateString();
       saveSessionToHistory({
         date: today,
         personaId: 'gentle',
@@ -161,7 +162,7 @@ describe('historyModule', () => {
     });
 
     it('by default, a partially completed session still keeps the streak alive', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateString();
       saveSessionToHistory({
         date: today,
         personaId: 'gentle',
@@ -175,7 +176,7 @@ describe('historyModule', () => {
     });
 
     it('with skips excluded, a partially completed session does not count', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateString();
       saveSessionToHistory({
         date: today,
         personaId: 'gentle',
@@ -188,7 +189,7 @@ describe('historyModule', () => {
     });
 
     it('respects the persisted preference when no override is passed', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateString();
       saveSessionToHistory({
         date: today,
         personaId: 'gentle',
@@ -205,7 +206,7 @@ describe('historyModule', () => {
     });
 
     it('counts an all-done session toward the streak under either setting', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateString();
       saveSessionToHistory({
         date: today,
         personaId: 'gentle',
@@ -219,7 +220,7 @@ describe('historyModule', () => {
     });
 
     it('never counts a zero-completion session, regardless of the setting', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = toLocalDateString();
       saveSessionToHistory({
         date: today,
         personaId: 'gentle',
@@ -282,7 +283,7 @@ describe('historyModule', () => {
       for (let i = 0; i < 7; i++) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = toLocalDateString(date);
 
         saveSessionToHistory({
           date: dateStr,

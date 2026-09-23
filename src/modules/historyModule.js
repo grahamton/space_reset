@@ -28,6 +28,16 @@ const STORAGE_KEY_LAST_SESSION_DATE = 'last_session_date';
  */
 
 /**
+ * YYYY-MM-DD in the user's local timezone. Streaks compare against local
+ * midnight, so session dates must be local too; toISOString() is UTC and
+ * rolls over to tomorrow on evenings west of Greenwich.
+ */
+export const toLocalDateString = (date = new Date()) => {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+/**
  * Save completed session to history
  */
 export const saveSessionToHistory = (sessionData) => {
@@ -35,7 +45,7 @@ export const saveSessionToHistory = (sessionData) => {
     const history = loadHistory();
     const sessionEntry = {
       id: `session_${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
+      date: toLocalDateString(),
       timestamp: Date.now(),
       ...sessionData
     };
