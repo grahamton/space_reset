@@ -18,9 +18,25 @@ vi.mock('@anthropic-ai/sdk', () => {
   return { default: Anthropic };
 });
 
-const worker = (await import('../index.js')).default;
+const { default: worker, MissionQuota } = await import('../index.js');
 
-const ENV = { ANTHROPIC_API_KEY: 'test-key', ALLOWED_ORIGIN: 'https://example.com' };
+const quotaObjects = new Map();
+const quota = {
+  getByName(name) {
+    if (!quotaObjects.has(name)) {
+      const values = new Map();
+      quotaObjects.set(name, new MissionQuota({ storage: { kv: {
+        get: (key) => values.get(key),
+        put: (key, value) => values.set(key, value)
+      } } }, {}));
+    }
+    return quotaObjects.get(name);
+  }
+};
+const ENV = {
+  ANTHROPIC_API_KEY: 'test-key', ALLOWED_ORIGIN: 'https://example.com',
+  MISSION_QUOTA: quota, DAILY_MISSION_CAP: '50'
+};
 
 const missionsRequest = (body = {}) =>
   new Request('https://worker.dev/api/missions', {
@@ -52,6 +68,7 @@ const sampleMission = {
 describe('mission worker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    quotaObjects.clear();
   });
 
   describe('routing', () => {
@@ -103,6 +120,7 @@ describe('mission worker', () => {
         'http://127.0.0.1:8787',
         'https://b.example'
       ]) {
+        quotaObjects.clear();
         const res = await worker.fetch(withOrigin(origin), env);
         expect(res.status).toBe(200);
         expect(res.headers.get('Access-Control-Allow-Origin')).toBe(origin);
@@ -138,6 +156,60 @@ describe('mission worker', () => {
 
       expect(res.status).toBe(200);
       expect(parse).toHaveBeenCalledOnce();
+    });
+
+    it('admits exactly three analyses per IP in a rolling minute', async () => {
+      const statuses = [];
+      for (let index = 0; index < 22; index += 1) {
+        const request = missionsRequest();
+        request.headers.set('CF-Connecting-IP', '203.0.113.7');
+        statuses.push((await worker.fetch(request, ENV)).status);
+      }
+      expect(statuses.slice(0, 3)).toEqual([200, 200, 200]);
+      expect(statuses.slice(3)).toEqual(Array(19).fill(429));
+      expect(parse).toHaveBeenCalledTimes(3);
+    });
+
+    it('caps total analyses across IPs for the UTC day', async () => {
+      const env = { ...ENV, DAILY_MISSION_CAP: '2' };
+      const statuses = [];
+      for (const ip of ['203.0.113.7', '203.0.113.8', '203.0.113.9']) {
+        const request = missionsRequest();
+        request.headers.set('CF-Connecting-IP', ip);
+        statuses.push((await worker.fetch(request, env)).status);
+      }
+      expect(statuses).toEqual([200, 200, 429]);
+      expect(parse).toHaveBeenCalledTimes(2);
+    });
+
+    it('fails closed when the exact quota is missing or unavailable', async () => {
+      const missing = await worker.fetch(missionsRequest(), { ...ENV, MISSION_QUOTA: undefined });
+      const broken = await worker.fetch(missionsRequest(), {
+        ...ENV,
+        MISSION_QUOTA: { getByName() { throw new Error('unavailable'); } }
+      });
+      expect(missing.status).toBe(503);
+      expect(broken.status).toBe(503);
+      expect(parse).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('exact quota object', () => {
+    it('uses a sliding minute rather than a fixed clock boundary', () => {
+      const instance = quota.getByName('ip:example');
+      expect(instance.consumeRecent(0, 3, 60000)).toBe(true);
+      expect(instance.consumeRecent(10000, 3, 60000)).toBe(true);
+      expect(instance.consumeRecent(20000, 3, 60000)).toBe(true);
+      expect(instance.consumeRecent(30000, 3, 60000)).toBe(false);
+      expect(instance.consumeRecent(60001, 3, 60000)).toBe(true);
+    });
+
+    it('resets the global count only when the UTC day changes', () => {
+      const instance = quota.getByName('global');
+      expect(instance.consumeDaily('2026-09-22', 2)).toBe(true);
+      expect(instance.consumeDaily('2026-09-22', 2)).toBe(true);
+      expect(instance.consumeDaily('2026-09-22', 2)).toBe(false);
+      expect(instance.consumeDaily('2026-09-23', 2)).toBe(true);
     });
   });
 
@@ -274,6 +346,7 @@ describe('mission worker', () => {
 
       for (const bad of [0, 9, -1, 'banana', 2.5]) {
         parse.mockClear();
+        quotaObjects.clear();
         await worker.fetch(missionsRequest({ missionCount: bad }), ENV);
         const prompt = parse.mock.calls[0][0].messages[0].content[1].text;
         expect(prompt).toMatch(/roughly 3 to 6/i);
