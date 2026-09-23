@@ -127,20 +127,59 @@ const errorResponse = (error, origin) => {
   return json({ error: 'Analysis failed. Try again?' }, { status: 502, origin });
 };
 
+const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+
+/**
+ * Pages that may call the API from a browser: the app's own origin, local dev,
+ * and anything listed in ALLOWED_ORIGIN (comma-separated, or "*" for any).
+ * A missing Origin header means a non-browser client; the rate limit covers those.
+ */
+const isAllowedOrigin = (requestOrigin, selfOrigin, allowed) =>
+  !requestOrigin ||
+  requestOrigin === selfOrigin ||
+  LOCAL_ORIGIN.test(requestOrigin) ||
+  allowed.includes('*') ||
+  allowed.includes(requestOrigin);
+
 export default {
   async fetch(request, env) {
-    const origin = env.ALLOWED_ORIGIN || '*';
+    const url = new URL(request.url);
+    const allowed = (env.ALLOWED_ORIGIN || '')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean);
+    const requestOrigin = request.headers.get('Origin');
+    const originOk = isAllowedOrigin(requestOrigin, url.origin, allowed);
+    // Echo an allowed caller; otherwise name an origin that is allowed, so a
+    // foreign page's browser refuses to hand it the response.
+    const origin = requestOrigin && originOk ? requestOrigin : allowed[0] || url.origin;
 
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders(origin) });
     }
 
-    const { pathname } = new URL(request.url);
-    if (pathname !== '/api/missions') {
+    if (url.pathname !== '/api/missions') {
       return json({ error: 'Not found' }, { status: 404, origin });
     }
     if (request.method !== 'POST') {
       return json({ error: 'Method not allowed' }, { status: 405, origin });
+    }
+    if (!originOk) {
+      return json({ error: 'This API only serves the Space Reset app.' }, { status: 403, origin });
+    }
+
+    // Every analysis is billed to one Anthropic key, and the app is public.
+    // Per-IP and per Cloudflare location, deliberately loose; the hard cap is
+    // the key's spend limit. Absent in tests and copy-check, so skip it there.
+    if (env.MISSIONS_RATE_LIMIT) {
+      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const { success } = await env.MISSIONS_RATE_LIMIT.limit({ key: ip });
+      if (!success) {
+        return json(
+          { error: "That's a few photos in a row. Give it a minute, then try again." },
+          { status: 429, origin }
+        );
+      }
     }
 
     let body;

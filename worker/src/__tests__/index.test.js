@@ -76,6 +76,71 @@ describe('mission worker', () => {
     });
   });
 
+  describe('abuse guards', () => {
+    const withOrigin = (origin) => {
+      const req = missionsRequest();
+      req.headers.set('Origin', origin);
+      return req;
+    };
+
+    beforeEach(() => {
+      parse.mockResolvedValue(okResponse([sampleMission]));
+    });
+
+    it('blocks browser calls from a page that is not allowed, before calling Claude', async () => {
+      const res = await worker.fetch(withOrigin('https://evil.example'), ENV);
+
+      expect(res.status).toBe(403);
+      expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://example.com');
+      expect(parse).not.toHaveBeenCalled();
+    });
+
+    it('allows its own origin, localhost and listed origins', async () => {
+      const env = { ...ENV, ALLOWED_ORIGIN: 'https://a.example, https://b.example' };
+      for (const origin of [
+        'https://worker.dev',
+        'http://localhost:5173',
+        'http://127.0.0.1:8787',
+        'https://b.example'
+      ]) {
+        const res = await worker.fetch(withOrigin(origin), env);
+        expect(res.status).toBe(200);
+        expect(res.headers.get('Access-Control-Allow-Origin')).toBe(origin);
+      }
+    });
+
+    it('allows any origin when ALLOWED_ORIGIN is "*"', async () => {
+      const res = await worker.fetch(withOrigin('https://anyone.example'), {
+        ...ENV,
+        ALLOWED_ORIGIN: '*'
+      });
+      expect(res.status).toBe(200);
+    });
+
+    it('rate-limits per client IP, before calling Claude', async () => {
+      const limit = vi.fn().mockResolvedValue({ success: false });
+      const req = missionsRequest();
+      req.headers.set('CF-Connecting-IP', '203.0.113.7');
+
+      const res = await worker.fetch(req, { ...ENV, MISSIONS_RATE_LIMIT: { limit } });
+
+      expect(res.status).toBe(429);
+      expect(limit).toHaveBeenCalledWith({ key: '203.0.113.7' });
+      expect(parse).not.toHaveBeenCalled();
+    });
+
+    it('goes ahead when under the limit', async () => {
+      const limit = vi.fn().mockResolvedValue({ success: true });
+      const res = await worker.fetch(missionsRequest(), {
+        ...ENV,
+        MISSIONS_RATE_LIMIT: { limit }
+      });
+
+      expect(res.status).toBe(200);
+      expect(parse).toHaveBeenCalledOnce();
+    });
+  });
+
   describe('request validation', () => {
     it('rejects a missing image', async () => {
       const res = await worker.fetch(missionsRequest({ image: '' }), ENV);
