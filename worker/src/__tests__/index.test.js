@@ -155,7 +155,7 @@ describe('mission worker', () => {
       await worker.fetch(missionsRequest(), ENV);
 
       const params = parse.mock.calls[0][0];
-      expect(params.model).toBe('claude-opus-5');
+      expect(params.model).toBe('claude-sonnet-5');
       expect(params.system).toMatch(/Drill Sergeant/i);
 
       const [imageBlock, textBlock] = params.messages[0].content;

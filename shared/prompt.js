@@ -96,6 +96,7 @@ export const buildMissionPrompt = ({
     '',
     '## Mission types',
     ...MISSION_TYPES.map((type) => `- ${type}: ${MISSION_TYPE_GUIDE[type]}`),
+    'Pick the type from what the card moves, not where it happens: clothes going into a hamper are laundry even when they are on the floor or bed, and straightening things on their own shelf or hook is organize.',
     '',
     '## Card length',
     '- title: 2 to 6 words. A label, not a sentence.',

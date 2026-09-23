@@ -72,7 +72,7 @@ scripts/copy-check.js     Eval runner for copyChecks (Node only; see below)
 
 Lives only in `worker/src/index.js`.
 
-- Model and effort are constants at the top of the file. Default `claude-opus-5` at `medium` effort.
+- Model and effort are constants at the top of the file. Default `claude-sonnet-5` at `medium` effort.
 - Persona → `system`. Photo → a base64 `image` content block. Instructions → a `text` block after it.
 - Structured output via `zodOutputFormat(MissionsSchema)` on `client.messages.parse()`; read `response.parsed_output`.
 - Check `stop_reason === 'refusal'` and a null `parsed_output` before using the result.
