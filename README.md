@@ -108,8 +108,10 @@ Every photo is billed to your Anthropic key. The deployed app is **public**, wit
 | Guard | Where | What it does | Limits |
 |---|---|---|---|
 | **Spend cap** | Anthropic Console | Turn off auto-reload, or give the app its own workspace with a spend limit. | The only hard cap. Set it before anything else. |
-| **Per-IP rate limit** | `[[ratelimits]]` in `worker/wrangler.toml` | 3 analyses per IP per minute, checked before Claude is called; returns 429. | Cloudflare counts per data centre and approximately. In a live burst it blocked only 3 of 22 requests, so it slows a script but doesn't stop one. An exact limit needs a Durable Object. |
-| **Origin check** | `ALLOWED_ORIGIN` in `worker/wrangler.toml` | Other websites' pages can't call the API (403). The app's own origin and localhost are always allowed. | Scripts can fake the Origin header. Add your site here, comma-separated, if you embed the app. |
+| **Edge rate limit** | `[[ratelimits]]` in `worker/wrangler.toml` | Fast first pass at 3 requests per IP per minute. | Cloudflare counts approximately and per data centre; this is not the exact guard. |
+| **Exact per-IP limit** | `MISSION_QUOTA` Durable Object | Admits at most 3 requests per IP in a rolling 60 seconds before Claude is called; returns 429. | Identifies a client by `CF-Connecting-IP`; callers behind one public IP share the allowance. |
+| **Daily global cap** | `MISSION_QUOTA` Durable Object and `DAILY_MISSION_CAP` | Admits at most 50 requests per UTC day across all clients; returns 429 after that. | Counts admitted attempts, including model failures. Change the configured value after reviewing usage and spend. |
+| **Origin check** | `ALLOWED_ORIGIN` in `worker/wrangler.toml` | Other websites' pages can't call the API (403). The app's own origin, Rainbowfetch's two canonical origins, and localhost are allowed. | Scripts can fake the Origin header; it is not authentication. |
 
 To make it **private** instead, put Cloudflare Access in front before adding the key:
 
@@ -121,7 +123,7 @@ To make it **private** instead, put Cloudflare Access in front before adding the
 
 ## Configuration
 
-The model and reasoning effort live at the top of `worker/src/index.js`. It runs `claude-sonnet-5` at `medium` effort — analysis sits behind a spinner, so latency is a feature. Raise the effort if mission quality disappoints.
+The model and reasoning effort live at the top of `worker/src/missionHandler.js`. It runs `claude-sonnet-5` at `medium` effort — analysis sits behind a spinner, so latency is a feature. Raise the effort if mission quality disappoints.
 
 **Why Sonnet 5, not Opus.** The app sends one photo and gets back about six short structured cards. Sonnet 5 costs $2 / $10 per million input/output tokens against Opus 5's $5 / $25, **60% less per analysis**, with the same request shape (vision, structured output, effort). Jev showed the copy held up on the switch (see below). Haiku 4.5 would be cheaper again ($1 / $5), but it rejects the `effort` parameter and hasn't been evaluated.
 
@@ -152,6 +154,8 @@ The canaries are hand-written cards with known problems that must flag, plus cle
 Sonnet broke no copy rules. Its one weakness was picking a card's type by where the job is, not what moves ("clothes on the floor → hamper" labelled `clear` instead of `laundry`). One line in the prompt (`MISSION_TYPE_RULE` in `shared/prompt.js`) fixed most of it, and the switch cut the per-analysis price by 60%.
 
 **It caught a real rule break.** A gentle-voice note repeated a card's tactic ("one armful at a time, no sorting"). The note rule now covers strategies as well as instructions, and a fresh Opus run went from 1 flag and 7 reviews to 0 flags and 3 reviews.
+
+**A live Preview exposed a safety gap (September 27, 2026).** On a public photo of a cluttered office, Roast Master suggested taking an unidentified bag down from boxes near the ceiling and, in another response, stacking boxes into a tower. The shared prompt now excludes overhead work, unstable stacks and handling unknown bags or containers; a matching Jev rule and two canaries check for explicit unsafe instructions. The new rule still needs a canary run and broader photo evaluation before we claim it is effective. Jev reads the card text, not the photo, so it cannot detect every unsafe situation.
 
 **The canaries have held.** Every seeded problem flagged on every run, with no false positives on the clean ones.
 

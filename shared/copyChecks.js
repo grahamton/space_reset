@@ -95,6 +95,20 @@ export const COPY_RULES = [
     })
   },
   {
+    id: 'unsafe_action',
+    appliesTo: ['card'],
+    label: 'Unsafe physical task',
+    question: (path) => ({
+      type: 'noul',
+      instructions: `Does \`${path}\` direct the reader to do an unsafe physical task?`,
+      criteria: {
+        true: 'Asks the reader to climb, stand on furniture, reach overhead, build or take down a tall or unstable stack, or open, move or discard a closed or unidentified bag or container based only on how it looks.',
+        false:
+          'The work is reachable from the floor without unstable stacking or handling unknown contents. Mentioning a high or unidentified object without asking the reader to handle it is allowed.'
+      }
+    })
+  },
+  {
     id: 'note_restates_mission',
     appliesTo: ['note'],
     label: 'Note repeats a mission',

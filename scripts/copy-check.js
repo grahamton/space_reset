@@ -20,7 +20,9 @@ import { fileURLToPath } from 'node:url';
 
 import { TypeSafeClient } from '@typesafe-ai/sdk';
 
-import worker from '../worker/src/index.js';
+// The evaluator calls the HTTP handler in Node; the production entry also
+// exports a Cloudflare-only Durable Object class.
+import worker from '../worker/src/missionHandler.js';
 import { PERSONAS } from '../shared/personas.js';
 import {
   buildCopyCheckRequest,
@@ -44,6 +46,11 @@ const MIME_TYPES = {
 // Opus calls are slow and rate-limited; TypeSafe calls are cheap and fast.
 const WORKER_CONCURRENCY = 3;
 const CHECK_CONCURRENCY = 8;
+// Evaluation is intentionally outside production quota accounting. The API
+// requests below still incur Anthropic charges and require a real API key.
+const EVAL_QUOTA = {
+  getByName: () => ({ consumeRecent: async () => true, consumeDaily: async () => true })
+};
 
 const { values: args, positionals } = parseArgs({
   allowPositionals: true,
@@ -102,7 +109,11 @@ const generate = async () => {
       })
     });
     const started = Date.now();
-    const res = await worker.fetch(request, { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY });
+    const res = await worker.fetch(request, {
+      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+      MISSION_QUOTA: EVAL_QUOTA,
+      DAILY_MISSION_CAP: '50'
+    });
     const response = await res.json();
     const seconds = ((Date.now() - started) / 1000).toFixed(1);
     console.log(

@@ -70,10 +70,10 @@ scripts/copy-check.js     Eval runner for copyChecks (Node only; see below)
 
 ## The Claude call
 
-Lives only in `worker/src/index.js`.
+Lives in `worker/src/missionHandler.js`; `worker/src/index.js` exports that handler and the quota Durable Object.
 
 - Model and effort are constants at the top of the file. Default `claude-sonnet-5` at `medium` effort. It was Opus 5; Sonnet is 60% cheaper per token and matched it on every copy rule in `copy-check`. Before changing the model, run `copy-check` on both and compare (README → "Checking mission copy with Jev").
-- The app is public. A per-IP rate limit (`MISSIONS_RATE_LIMIT` binding) and an origin check (`ALLOWED_ORIGIN`) run before any Claude call; keep new Claude-calling routes behind both. The rate limit is approximate, so the real cap is the Anthropic key's spend limit.
+- The app is public. Keep new Claude-calling routes behind the origin check (`ALLOWED_ORIGIN`), approximate edge limit (`MISSIONS_RATE_LIMIT`), and exact per-IP and global daily admissions (`MISSION_QUOTA`). The Durable Object guard must fail closed if its binding or cap is unavailable. The Anthropic key's spend limit remains the financial backstop.
 - Persona → `system`. Photo → a base64 `image` content block. Instructions → a `text` block after it.
 - Structured output via `zodOutputFormat(MissionsSchema)` on `client.messages.parse()`; read `response.parsed_output`.
 - Check `stop_reason === 'refusal'` and a null `parsed_output` before using the result.
