@@ -38,6 +38,16 @@ storage = "sqlite"
 ALLOWED_ORIGIN = "https://rainbowfetch.com,https://www.rainbowfetch.com"
 DAILY_MISSION_CAP = "50"
 
+# Worker Previews have separate runtime settings and Durable Object storage.
+# Keep the same browser origins and exact limits for the PR preview.
+[previews.vars]
+ALLOWED_ORIGIN = "https://rainbowfetch.com,https://www.rainbowfetch.com"
+DAILY_MISSION_CAP = "50"
+
+[[previews.durable_objects.bindings]]
+name = "MISSION_QUOTA"
+class_name = "MissionQuota"
+
 # ANTHROPIC_API_KEY is a secret, never a var:
 #   local dev  -> worker/.dev.vars   (gitignored)
 #   production -> wrangler secret put ANTHROPIC_API_KEY
