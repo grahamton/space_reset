@@ -155,6 +155,8 @@ Sonnet broke no copy rules. Its one weakness was picking a card's type by where 
 
 **It caught a real rule break.** A gentle-voice note repeated a card's tactic ("one armful at a time, no sorting"). The note rule now covers strategies as well as instructions, and a fresh Opus run went from 1 flag and 7 reviews to 0 flags and 3 reviews.
 
+**A live Preview exposed a safety gap (September 27, 2026).** On a public photo of a cluttered office, Roast Master suggested taking an unidentified bag down from boxes near the ceiling and, in another response, stacking boxes into a tower. The shared prompt now excludes overhead work, unstable stacks and handling unknown bags or containers; a matching Jev rule and two canaries check for explicit unsafe instructions. The new rule still needs a canary run and broader photo evaluation before we claim it is effective. Jev reads the card text, not the photo, so it cannot detect every unsafe situation.
+
 **The canaries have held.** Every seeded problem flagged on every run, with no false positives on the clean ones.
 
 **Limits worth knowing:**

@@ -94,6 +94,7 @@ export const buildMissionPrompt = ({
     '- Base every mission on what is actually visible in the photo. Name the specific items and where they are ("the two plates by the bed", "the mugs on the desk"), so the user never has to work out what you meant.',
     '- Batch by category rather than by single object: "every mug on the desk", not "the blue mug". One category or one area per mission.',
     '- Only include a category you can see evidence of. Do not invent items, furniture or mess that is not in the photo, and do not pad with generic advice to reach the count. Fewer honest missions beat more made-up ones.',
+    '- Keep every task safely reachable while standing on the floor. Never ask the user to climb, stand on furniture, reach overhead, or build or take down tall or unstable stacks. Leave closed or unidentified bags and containers alone; do not open, move, or discard them based on appearance.',
     '',
     '## People and pets in the photo',
     'Photos are often taken with someone in frame: the user, a housemate, a child, a pet. Missions are about the room only. Do not mention, describe, joke about or assign tasks to anyone visible, and do not refer to what they are wearing or holding. Treat the space they occupy as not part of the job: work around them. This applies to every voice, the roast included, because the person in the photo may not be the person holding the phone.',
